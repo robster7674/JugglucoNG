@@ -9,6 +9,12 @@ internal object AiDexRuntimePolicy {
         REMOVE_BOND_AND_RECONNECT,
     }
 
+    enum class MissingCccdCallbackAction {
+        IGNORE,
+        WAIT,
+        ASSUME_COMPLETE,
+    }
+
     fun connectedWarmupStatus(
         connectionPart: String,
         anchorMs: Long,
@@ -212,6 +218,22 @@ internal object AiDexRuntimePolicy {
         // far enough along to force key exchange instead of stalling forever.
         if (challengeWritten || bondDataRead) return false
         return true
+    }
+
+    fun decideMissingCccdCallbackAction(
+        cccdWriteInProgress: Boolean,
+        hasPendingCccd: Boolean,
+        timeoutRetries: Int,
+        maxRetries: Int,
+        canInferComplete: Boolean,
+    ): MissingCccdCallbackAction {
+        if (!cccdWriteInProgress || !hasPendingCccd) return MissingCccdCallbackAction.IGNORE
+        if (!canInferComplete) return MissingCccdCallbackAction.WAIT
+        return if (timeoutRetries < maxRetries) {
+            MissingCccdCallbackAction.WAIT
+        } else {
+            MissingCccdCallbackAction.ASSUME_COMPLETE
+        }
     }
 
     fun shouldRecoverFromBlockedReconnect(

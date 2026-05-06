@@ -431,6 +431,50 @@ class AiDexRuntimePolicyTests {
     }
 
     @Test
+    fun decideMissingCccdCallbackAction_waitsThenAssumesComplete() {
+        assertEquals(
+            AiDexRuntimePolicy.MissingCccdCallbackAction.WAIT,
+            AiDexRuntimePolicy.decideMissingCccdCallbackAction(
+                cccdWriteInProgress = true,
+                hasPendingCccd = true,
+                timeoutRetries = 0,
+                maxRetries = 1,
+                canInferComplete = true,
+            )
+        )
+        assertEquals(
+            AiDexRuntimePolicy.MissingCccdCallbackAction.ASSUME_COMPLETE,
+            AiDexRuntimePolicy.decideMissingCccdCallbackAction(
+                cccdWriteInProgress = true,
+                hasPendingCccd = true,
+                timeoutRetries = 1,
+                maxRetries = 1,
+                canInferComplete = true,
+            )
+        )
+        assertEquals(
+            AiDexRuntimePolicy.MissingCccdCallbackAction.WAIT,
+            AiDexRuntimePolicy.decideMissingCccdCallbackAction(
+                cccdWriteInProgress = true,
+                hasPendingCccd = true,
+                timeoutRetries = 1,
+                maxRetries = 1,
+                canInferComplete = false,
+            )
+        )
+        assertEquals(
+            AiDexRuntimePolicy.MissingCccdCallbackAction.IGNORE,
+            AiDexRuntimePolicy.decideMissingCccdCallbackAction(
+                cccdWriteInProgress = false,
+                hasPendingCccd = true,
+                timeoutRetries = 1,
+                maxRetries = 1,
+                canInferComplete = true,
+            )
+        )
+    }
+
+    @Test
     fun shouldRecoverFromBlockedReconnect_whenStaleGattExistsWithoutConnectionCallback() {
         assertTrue(
             AiDexRuntimePolicy.shouldRecoverFromBlockedReconnect(

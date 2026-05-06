@@ -157,6 +157,8 @@ class AiDexBleManager(
         private const val SETUP_BONDING_STALL_TIMEOUT_MS = 35_000L
         private const val PRE_AUTH_ENCRYPTED_TRAFFIC_TIMEOUT_MS = 5_000L
         private const val PRE_AUTH_ENCRYPTED_TRAFFIC_MIN_FRAMES = 3
+        private const val CCCD_WRITE_CALLBACK_TIMEOUT_MS = 2_500L
+        private const val CCCD_WRITE_CALLBACK_MAX_EXTRA_WAITS = 1
         private const val INVALID_SETUP_BOND_RESET_THRESHOLD = 2
         private const val GATT_OP_TIMEOUT_MS = 15_000L    // Watchdog for stuck GATT operations
         private const val GATT_OP_WATCHDOG_RETRIES = 2  // Max retries on watchdog timeout before dropping op
@@ -263,6 +265,8 @@ class AiDexBleManager(
     private var cccdQueue = ArrayDeque<UUID>() // Characteristics to enable notifications on
     private var cccdWriteInProgress = false
     private var cccdChainComplete = false
+    private var cccdPendingWriteUuid: UUID? = null
+    private var cccdMissingCallbackRetries = 0
     private var pendingBondedCccdUuid: UUID? = null
 
     // -- Key Exchange State --
@@ -439,6 +443,45 @@ class AiDexBleManager(
             recoverFromInvalidSetupState(
                 reason = "pre-auth-encrypted-traffic phase=$phase frames=$preAuthEncryptedFrameCount age=${trafficAgeMs}ms bondState=$bondState"
             )
+        }
+    }
+
+    /** Watchdog: Android must callback after descriptor writes, but some stacks drop CCCD callbacks. */
+    private val cccdWriteWatchdog: Runnable = Runnable {
+        val pendingUuid = cccdPendingWriteUuid ?: return@Runnable
+        val gatt = mBluetoothGatt ?: return@Runnable
+        when (
+            AiDexRuntimePolicy.decideMissingCccdCallbackAction(
+                cccdWriteInProgress = cccdWriteInProgress,
+                hasPendingCccd = true,
+                timeoutRetries = cccdMissingCallbackRetries,
+                maxRetries = CCCD_WRITE_CALLBACK_MAX_EXTRA_WAITS,
+                canInferComplete = canInferMissingCccdCallbackComplete(),
+            )
+        ) {
+            AiDexRuntimePolicy.MissingCccdCallbackAction.IGNORE -> Unit
+            AiDexRuntimePolicy.MissingCccdCallbackAction.WAIT -> {
+                cccdMissingCallbackRetries += 1
+                Log.w(
+                    TAG,
+                    "CCCD $pendingUuid descriptor callback missing after ${CCCD_WRITE_CALLBACK_TIMEOUT_MS}ms — " +
+                        "waiting one more window (${cccdMissingCallbackRetries}/${CCCD_WRITE_CALLBACK_MAX_EXTRA_WAITS})"
+                )
+                handler.postDelayed(cccdWriteWatchdog, CCCD_WRITE_CALLBACK_TIMEOUT_MS)
+            }
+            AiDexRuntimePolicy.MissingCccdCallbackAction.ASSUME_COMPLETE -> {
+                Log.w(
+                    TAG,
+                    "CCCD $pendingUuid descriptor callback still missing — " +
+                        "assuming write completed and continuing chain"
+                )
+                finishCccdWrite(
+                    gatt = gatt,
+                    charUuid = pendingUuid,
+                    status = BluetoothGatt.GATT_SUCCESS,
+                    inferred = true,
+                )
+            }
         }
     }
 
@@ -1034,6 +1077,7 @@ class AiDexBleManager(
         handler.removeCallbacks(connectAttemptWatchdog)
         handler.removeCallbacks(setupProgressWatchdog)
         handler.removeCallbacks(preAuthEncryptedTrafficWatchdog)
+        handler.removeCallbacks(cccdWriteWatchdog)
         handler.removeCallbacks(invalidSetupRecoveryFallback)
         handler.removeCallbacks(staleConnectionRecoveryFallback)
         preAuthEncryptedFrameCount = 0
@@ -1083,7 +1127,8 @@ class AiDexBleManager(
                 "lastLiveAge=${ageSinceLabel(lastLiveReadingObservedTimeMs, nowMs)} " +
                 "lastF002Age=${ageSinceLabel(lastF002FrameTimeMs, nowMs)} " +
                 "gattOpActive=$gattOpActive currentOp=${describeGattOp(currentGattOp)} queueSize=${gattQueue.size} " +
-                "connectAttemptInFlight=$connectAttemptInFlight servicesReady=$servicesReady cccdComplete=$cccdChainComplete " +
+                "connectAttemptInFlight=$connectAttemptInFlight servicesReady=$servicesReady " +
+                "cccdComplete=$cccdChainComplete cccdQueue=${cccdQueue.size} cccdPending=$cccdPendingWriteUuid " +
                 "bondValidated=$bondValidatedByStreaming " +
                 "historyDownloading=$historyDownloading pendingInitialHistory=$pendingInitialHistoryRequest " +
                 "pendingMetadata=$pendingStreamingMetadataRead/$pendingStreamingMetadataReason " +
@@ -1101,11 +1146,16 @@ class AiDexBleManager(
         negotiatedMtu = 23
 
         gattQueue.clear()
+        cccdQueue.clear()
         gattOpActive = false
         queuePausedForBonding = false
         currentGattOp = null
         servicesReady = false
         cccdChainComplete = false
+        cccdWriteInProgress = false
+        cccdPendingWriteUuid = null
+        cccdMissingCallbackRetries = 0
+        pendingBondedCccdUuid = null
         keyExchangePendingBond = false
         postCccdFollowUp = PostCccdFollowUp.NONE
         historyDownloading = false
@@ -1227,6 +1277,10 @@ class AiDexBleManager(
         )
         handler.removeCallbacks(preAuthEncryptedTrafficWatchdog)
         handler.postDelayed(preAuthEncryptedTrafficWatchdog, PRE_AUTH_ENCRYPTED_TRAFFIC_TIMEOUT_MS)
+    }
+
+    private fun canInferMissingCccdCallbackComplete(): Boolean {
+        return currentBondState() == BluetoothDevice.BOND_BONDED
     }
 
     private fun removeBondSafely(device: BluetoothDevice?, reason: String) {
@@ -1813,6 +1867,7 @@ class AiDexBleManager(
         servicesReady = true
         Log.i(TAG, "Services discovered. Starting CCCD chain...")
         setPhase(Phase.CCCD_CHAIN)
+        handler.removeCallbacks(cccdWriteWatchdog)
 
         // Build CCCD queue: F003 first (data), then F002 (commands), then F001 (auth)
         cccdQueue.clear()
@@ -1820,6 +1875,8 @@ class AiDexBleManager(
         cccdQueue.add(CHAR_F002)
         cccdQueue.add(CHAR_F001)
         cccdWriteInProgress = false
+        cccdPendingWriteUuid = null
+        cccdMissingCallbackRetries = 0
 
         writeNextCccd(gatt)
     }
@@ -1831,6 +1888,16 @@ class AiDexBleManager(
         }
 
         val charUuid = descriptor.characteristic.uuid
+        handler.post {
+            handleDescriptorWrite(gatt, charUuid, status)
+        }
+    }
+
+    private fun handleDescriptorWrite(gatt: BluetoothGatt, charUuid: UUID, status: Int) {
+        if (gatt !== mBluetoothGatt) {
+            Log.w(TAG, "onDescriptorWrite: stale posted callback for $charUuid, ignoring")
+            return
+        }
 
         if (
             phase == Phase.KEY_EXCHANGE &&
@@ -1841,6 +1908,20 @@ class AiDexBleManager(
             Log.i(TAG, "onDescriptorWrite: late initial CCCD callback for $charUuid after key exchange start — ignoring")
             return
         }
+
+        val pendingUuid = cccdPendingWriteUuid
+        if (pendingUuid != charUuid) {
+            Log.i(
+                TAG,
+                "onDescriptorWrite: late/mismatched CCCD callback for $charUuid " +
+                    "(pending=$pendingUuid status=$status) — ignoring"
+            )
+            return
+        }
+
+        handler.removeCallbacks(cccdWriteWatchdog)
+        cccdPendingWriteUuid = null
+        cccdMissingCallbackRetries = 0
 
         if (isAuthRelatedCccdFailure(status)) {
             Log.i(TAG, "onDescriptorWrite: CCCD $charUuid auth/perm fail (status=$status) — re-queuing for retry after bond")
@@ -1861,13 +1942,22 @@ class AiDexBleManager(
             return
         }
 
+        finishCccdWrite(gatt, charUuid, status, inferred = false)
+    }
+
+    private fun finishCccdWrite(gatt: BluetoothGatt, charUuid: UUID, status: Int, inferred: Boolean) {
+        handler.removeCallbacks(cccdWriteWatchdog)
+        cccdPendingWriteUuid = null
+
         if (status != BluetoothGatt.GATT_SUCCESS) {
             Log.w(TAG, "onDescriptorWrite: CCCD $charUuid failed status=$status")
             cccdWriteInProgress = false
             // Try next anyway
         } else {
-            Log.i(TAG, "onDescriptorWrite: CCCD $charUuid enabled successfully")
+            val suffix = if (inferred) " (callback inferred)" else ""
+            Log.i(TAG, "onDescriptorWrite: CCCD $charUuid enabled successfully$suffix")
             cccdWriteInProgress = false
+            cccdMissingCallbackRetries = 0
             if (pendingBondedCccdUuid == charUuid) {
                 pendingBondedCccdUuid = null
             }
@@ -2288,16 +2378,19 @@ class AiDexBleManager(
         }
 
         cccdWriteInProgress = true
+        cccdPendingWriteUuid = charUuid
         // All AiDex characteristics (F001, F002, F003) use NOTIFY, not INDICATE.
         // F001 props=0x18 (WRITE + NOTIFY), F002 props=WRITE+NOTIFY, F003 props=0x10 (NOTIFY).
         // Writing indication (02 00) to a NOTIFY-only CCCD fails with status=3.
         val ok = enableNotification(gatt, characteristic)
         if (!ok) {
             cccdWriteInProgress = false
+            cccdPendingWriteUuid = null
             cccdRetryCount++
             if (cccdRetryCount >= CCCD_MAX_RETRIES) {
                 Log.e(TAG, "writeNextCccd: CCCD $charUuid failed after $cccdRetryCount retries — skipping")
                 cccdRetryCount = 0
+                cccdMissingCallbackRetries = 0
                 cccdQueue.pollFirst()
                 if (cccdQueue.isEmpty()) {
                     cccdChainComplete = true
@@ -2327,6 +2420,8 @@ class AiDexBleManager(
             // Success — remove from queue, reset retry count. onDescriptorWrite will advance chain.
             cccdQueue.pollFirst()
             cccdRetryCount = 0
+            handler.removeCallbacks(cccdWriteWatchdog)
+            handler.postDelayed(cccdWriteWatchdog, CCCD_WRITE_CALLBACK_TIMEOUT_MS)
         }
     }
 
@@ -2485,10 +2580,13 @@ class AiDexBleManager(
         // Re-register F003 (glucose data) and F002 (command responses) CCCDs.
         // F001 was written during/after bonding so it's already valid.
         // Use the CCCD chain mechanism for serialized writes.
+        handler.removeCallbacks(cccdWriteWatchdog)
         cccdQueue.clear()
         cccdQueue.add(CHAR_F003)
         cccdQueue.add(CHAR_F002)
         cccdWriteInProgress = false
+        cccdPendingWriteUuid = null
+        cccdMissingCallbackRetries = 0
         cccdChainComplete = false
 
         // After CCCDs are re-registered, either enter streaming (first connect)
