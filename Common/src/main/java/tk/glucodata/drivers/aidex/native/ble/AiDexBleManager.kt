@@ -202,9 +202,21 @@ class AiDexBleManager(
         // -- Broadcast Scan --
         private const val BROADCAST_SCAN_WINDOW_MS = 12_000L  // Healthy steady-state scan window
         private const val BROADCAST_RECOVERY_SCAN_WINDOW_MS = 30_000L  // Larger window while recovering broadcasts
-        private const val BROADCAST_SCAN_INTERVAL_MS = 60_000L  // Time between scans
+        private const val BROADCAST_SCAN_INTERVAL_MS = 60_000L  // Time between scans (fallback)
         private const val BROADCAST_DUPLICATE_SUPPRESS_MS = 70_000L
         private const val BROADCAST_SCAN_ALARM_MIN_DELAY_MS = 10_000L
+
+        // -- Phase-locked broadcast scan --
+        // After we catch one broadcast we know roughly when the next will arrive.
+        // Anchor a tight scan window to (lastBroadcastTime + observedCadence - PRE_OPEN);
+        // this gives ~per-minute reliability while keeping radio-on time low (≈18% / 60s
+        // → ≥82% deep sleep) instead of the 50% duty of the wide recovery scan.
+        private const val DEFAULT_BROADCAST_CADENCE_MS = 60_000L
+        private const val MIN_BROADCAST_CADENCE_MS = 45_000L
+        private const val MAX_BROADCAST_CADENCE_MS = 90_000L
+        private const val PHASE_LOCKED_SCAN_WINDOW_MS = 11_000L
+        private const val PHASE_LOCKED_PRE_OPEN_MS = 3_000L
+        private const val PHASE_LOCK_LOSS_MISS_COUNT = 3
 
     }
 
@@ -903,6 +915,16 @@ class AiDexBleManager(
     @Volatile private var broadcastScanStartedAtElapsed: Long = 0L
     @Volatile private var broadcastWakeLock: PowerManager.WakeLock? = null
 
+    // Phase-lock state: learned per-broadcast cadence + count of confident catches.
+    // `lastFreshBroadcastTimeMs` is the wall-clock time of the last *non-duplicate*
+    // accepted broadcast — both the cadence estimator and the schedule anchor must
+    // use this and NOT `lastBroadcastTime` (which gets bumped on dup mid-cycle and
+    // would otherwise poison the estimator pulling cadence below the real value).
+    @Volatile private var observedBroadcastCadenceMs: Long = DEFAULT_BROADCAST_CADENCE_MS
+    @Volatile private var phaseLockHits: Int = 0
+    @Volatile private var lastBroadcastOffsetForCadence: Int = -1
+    @Volatile private var lastFreshBroadcastTimeMs: Long = 0L
+
     // -- Transient Status --
     /** Temporary status message (e.g., calibration result) that auto-clears after 5 seconds. */
     @Volatile private var transientStatusMessage: String? = null
@@ -1260,6 +1282,10 @@ class AiDexBleManager(
         lastBroadcastTrendSeen = Int.MIN_VALUE
         lastBroadcastGlucoseSeen = Int.MIN_VALUE
         lastBroadcastOffsetSeenAtMs = 0L
+        observedBroadcastCadenceMs = DEFAULT_BROADCAST_CADENCE_MS
+        phaseLockHits = 0
+        lastBroadcastOffsetForCadence = -1
+        lastFreshBroadcastTimeMs = 0L
         clearDefaultParamProbeState()
         clearDefaultParamApplyState()
         defaultParamProbeUserInitiated = false
@@ -1730,6 +1756,10 @@ class AiDexBleManager(
             lastBroadcastTrendSeen = Int.MIN_VALUE
             lastBroadcastGlucoseSeen = Int.MIN_VALUE
             lastBroadcastOffsetSeenAtMs = 0L
+            observedBroadcastCadenceMs = DEFAULT_BROADCAST_CADENCE_MS
+            phaseLockHits = 0
+            lastBroadcastOffsetForCadence = -1
+            lastFreshBroadcastTimeMs = 0L
 
             Log.i(TAG, "Connected to ${gatt.device?.address}. Requesting MTU 512...")
             gatt.requestMtu(512)
@@ -5568,11 +5598,18 @@ class AiDexBleManager(
             }
         }
 
-        // In true broadcast-only mode a sensor may advertise under a different
-        // address than the last GATT session. Keep the scan open there and let
-        // the callback re-bind identity by serial/name match.
+        // Always pin the scan to the AiDEX CGM service UUID (0x181F). An empty
+        // filter list — which we used previously in broadcast-only mode — lets
+        // Android deprioritise/throttle the scan and routinely caused minute-long
+        // dead zones where the chip never surfaced an AiDEX advert even though
+        // a UUID-filtered scan started moments later (SensorBluetooth.Scanner21)
+        // would catch the same device in seconds. The service UUID is stable
+        // across address changes, so this still handles rebond.
+        // In a non-broadcast-only session we additionally pin the device address
+        // for a tighter offload filter.
         val filters = arrayListOf(
             ScanFilter.Builder().apply {
+                setServiceUuid(android.os.ParcelUuid(SERVICE_F000))
                 val targetAddr = mActiveDeviceAddress
                 if (!reconnect.isBroadcastOnlyMode && targetAddr != null) {
                     setDeviceAddress(targetAddr)
@@ -5580,8 +5617,17 @@ class AiDexBleManager(
             }.build()
         )
 
+        // Phase-locked tight window: keep the radio actively listening for the brief
+        // ~11s slot we open right before the expected advert. LOW_POWER's ~10% duty
+        // would leave us listening for only ~1s of that window and let the advert
+        // fall into an off-slot. The wide reacquisition window can stay LOW_POWER.
+        val scanMode = if (continuous && isPhaseLocked()) {
+            ScanSettings.SCAN_MODE_LOW_LATENCY
+        } else {
+            ScanSettings.SCAN_MODE_LOW_POWER
+        }
         val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+            .setScanMode(scanMode)
             .build()
 
         try {
@@ -5631,6 +5677,11 @@ class AiDexBleManager(
         }
 
         broadcastScanMisses = if (found) 0 else (broadcastScanMisses + 1)
+        // Drop phase-lock if we miss enough times in a row — the cadence estimate is
+        // either stale or the device is out of range. Force reacquisition (wide scan).
+        if (!found && broadcastScanMisses >= PHASE_LOCK_LOSS_MISS_COUNT) {
+            phaseLockHits = 0
+        }
 
         // Schedule next scan if this session is intentionally staying on broadcasts.
         val keepContinuousScanning = shouldContinueBroadcastScanning()
@@ -5666,25 +5717,61 @@ class AiDexBleManager(
 
     /**
      * Schedule the next broadcast scan with appropriate delay.
+     *
+     * When phase-locked (≥1 cadence sample, miss streak below loss threshold) we
+     * aim the next scan at `lastBroadcastTime + observedCadence*(misses+1) - PRE_OPEN`,
+     * so we wake briefly *just* before the next expected advert. Otherwise we fall
+     * back to the legacy fixed 60s / 15s-retry cadence to reacquire phase.
      */
     private fun scheduleBroadcastScan(reason: String) {
         if (!shouldContinueBroadcastScanning() || stop) return
 
-        var delay = BROADCAST_SCAN_INTERVAL_MS
-        // Retry aggressively (15s) for a few attempts if we're missing broadcasts
-        if (delay > 15_000L && broadcastScanMisses in 1..5) {
-            delay = 15_000L
+        val now = System.currentTimeMillis()
+        val phaseLocked = isPhaseLocked()
+        var delay: Long
+        val mode: String
+
+        if (phaseLocked && lastFreshBroadcastTimeMs > 0L) {
+            // Anchor to last *fresh* (non-dup) catch. Dups within the same offset
+            // window must NOT shift our notion of when the device's clock ticked.
+            val nextExpected = lastFreshBroadcastTimeMs +
+                observedBroadcastCadenceMs * (broadcastScanMisses + 1)
+            val openAt = nextExpected - PHASE_LOCKED_PRE_OPEN_MS
+            val raw = openAt - now
+            // If next expected has already passed (we're chasing a missed slot),
+            // keep retrying tight — but no faster than every 5s.
+            delay = if (raw < 5_000L) 5_000L else raw
+            mode = "phase-locked"
+        } else {
+            delay = BROADCAST_SCAN_INTERVAL_MS
+            if (delay > 15_000L && broadcastScanMisses in 1..5) {
+                delay = 15_000L
+            }
+            mode = "reacquire"
         }
 
         handler.removeCallbacks(broadcastScanRunnable)
         handler.postDelayed(broadcastScanRunnable, delay)
         cancelBroadcastScanAlarm()
         scheduleBroadcastScanAlarm(delay)
-        Log.d(TAG, "Broadcast scan scheduled in ${delay / 1000}s ($reason, misses=$broadcastScanMisses)")
+        Log.d(
+            TAG,
+            "Broadcast scan scheduled in ${delay / 1000}s ($reason, misses=$broadcastScanMisses, " +
+                "$mode, cadence=${observedBroadcastCadenceMs}ms, hits=$phaseLockHits)"
+        )
+    }
+
+    private fun isPhaseLocked(): Boolean {
+        return phaseLockHits >= 1 &&
+            lastFreshBroadcastTimeMs > 0L &&
+            broadcastScanMisses < PHASE_LOCK_LOSS_MISS_COUNT
     }
 
     private fun currentBroadcastScanWindowMs(continuous: Boolean, now: Long = System.currentTimeMillis()): Long {
         if (!continuous) return BROADCAST_ASSIST_SCAN_WINDOW_MS
+        // When phase-locked, a tight window centred on the predicted advert is enough
+        // and keeps radio-on time at ≈18% of the cadence (≥82% deep sleep).
+        if (isPhaseLocked()) return PHASE_LOCKED_SCAN_WINDOW_MS
         if (reconnect.isBroadcastOnlyMode) {
             // Legacy broadcast-only mode kept a full 30s scan window and was
             // noticeably more reliable on MIUI-style devices than the shorter
@@ -5842,6 +5929,13 @@ class AiDexBleManager(
             "$source sample: offset=${sample.offsetMinutes}min glucose=${sample.glucoseMgDl} mg/dL trend=${sample.trend}"
         )
 
+        // Capture timing of the previous *fresh* (non-duplicate) accepted broadcast
+        // before any state is touched. The cadence estimator MUST anchor here, not
+        // on `lastBroadcastTime`, because dups bump `lastBroadcastTime` mid-cycle
+        // and would otherwise pull the estimator below the device's real cadence.
+        val previousFreshBroadcastTimeMs = lastFreshBroadcastTimeMs
+        val previousOffsetForCadence = lastBroadcastOffsetForCadence
+
         lastBroadcastGlucose = sample.glucoseMgDl.toFloat()
         lastBroadcastTime = now
 
@@ -5865,6 +5959,26 @@ class AiDexBleManager(
         lastBroadcastGlucoseSeen = sample.glucoseMgDl
         lastBroadcastTrendSeen = sample.trend
         lastBroadcastOffsetSeenAtMs = now
+
+        // Phase-lock: derive per-minute cadence from the gap to the previous *fresh*
+        // catch. Using lastFreshBroadcastTimeMs (not lastBroadcastTime) means dup
+        // mid-cycle catches don't shorten the deltaTime — out-of-bounds values from
+        // multi-cycle gaps are then correctly rejected by the bounds clamp.
+        if (previousFreshBroadcastTimeMs > 0L && previousOffsetForCadence > 0) {
+            val deltaOffset = sample.offsetMinutes - previousOffsetForCadence
+            val deltaTimeMs = now - previousFreshBroadcastTimeMs
+            if (deltaOffset in 1..5 && deltaTimeMs > 0L) {
+                val perOffsetMs = deltaTimeMs / deltaOffset
+                if (perOffsetMs in MIN_BROADCAST_CADENCE_MS..MAX_BROADCAST_CADENCE_MS) {
+                    // EWMA: 75% old, 25% new — quick to track, slow to spike on jitter.
+                    observedBroadcastCadenceMs =
+                        (observedBroadcastCadenceMs * 3 + perOffsetMs) / 4
+                    phaseLockHits = (phaseLockHits + 1).coerceAtMost(10)
+                }
+            }
+        }
+        lastBroadcastOffsetForCadence = sample.offsetMinutes
+        lastFreshBroadcastTimeMs = now
 
         // Update offset tracking
         lastOffsetMinutes = sample.offsetMinutes
