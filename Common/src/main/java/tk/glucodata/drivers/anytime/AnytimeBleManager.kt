@@ -276,6 +276,11 @@ class AnytimeBleManager(
             clearProtocolFrameTimeout()
             return@Runnable
         }
+        if (tag.startsWith("init(after-setDate")) {
+            Log.w(TAG, "init ACK timeout after best-effort setDate; keeping GATT alive and waiting for raw push")
+            clearProtocolFrameTimeout()
+            return@Runnable
+        }
         if (phase != Phase.HANDSHAKING) return@Runnable
         if (familyEntry.family == AnytimeConstants.Family.CT4 && tryCt4HandshakeFallback()) {
             return@Runnable
@@ -635,8 +640,13 @@ class AnytimeBleManager(
         postVoltagePlainControlFrames = false
 
         val cachedName = SerialNumber?.let { AnytimeRegistry.loadDeviceName(Applic.app, it) }.orEmpty()
-        familyEntry = AnytimeProfileResolver.familyEntry(cachedName)
-        profile = AnytimeProfileResolver.resolve(cachedName)
+        val activeName = gatt.device?.name.orEmpty()
+        val resolvedName = cachedName.ifBlank { activeName }
+        familyEntry = AnytimeProfileResolver.familyEntry(resolvedName)
+        if (familyEntry.family == AnytimeConstants.Family.UNKNOWN && activeName.isNotBlank()) {
+            familyEntry = AnytimeProfileResolver.familyEntry(activeName)
+        }
+        profile = AnytimeProfileResolver.resolve(resolvedName.ifBlank { activeName })
 
         when {
             bound -> {
@@ -778,34 +788,19 @@ class AnytimeBleManager(
             return
         }
         Log.i(TAG, "Check OK (battery=${status.batteryVolts}V iw=${status.workingElectrodeCurrentNa}nA age=${status.sensorAgeReadings})")
-        updateSensorStartFromCheckAge(status.sensorAgeReadings)
+        // Do not derive Started from the check-frame age field. On CT4 it jumps
+        // wildly between reconnects/delete-readd attempts; the monotonic glucose
+        // id plus the 3-minute cadence is the stable timeline source.
         // Some CT4 transmitters do not reliably ACK setDate. Send it as a
         // best-effort clock update, then continue the documented handshake with
-        // init unless an ACK already advanced us.
+        // init without arming an init timeout; otherwise we disconnect just
+        // before the next raw 0x07 push arrives.
         writeFrame(setDateFrame(), "setDate", expectResponse = false)
         handler.postDelayed({
             if (!stop && phase == Phase.HANDSHAKING && !lastProtocolFrameTag.startsWith("init")) {
-                writeFrame(initFrame(), "init(after-setDate-best-effort)")
+                writeFrame(initFrame(), "init(after-setDate-best-effort)", expectResponse = false)
             }
         }, 250L)
-    }
-
-    private fun updateSensorStartFromCheckAge(sensorAgeCounter: Int) {
-        if (sensorAgeCounter <= 0) return
-        val ageMs = sensorAgeCounter.toLong() * SENSOR_AGE_COUNTER_TO_MS
-        val now = System.currentTimeMillis()
-        val candidateStart = (now - ageMs).coerceAtLeast(1L)
-        val jitterToleranceMs = 10L * 60L * 1000L
-        if (sensorStartAtMs == 0L || kotlin.math.abs(sensorStartAtMs - candidateStart) > jitterToleranceMs) {
-            val oldStart = sensorStartAtMs
-            sensorStartAtMs = candidateStart
-            sensorstartmsec = candidateStart
-            if (warmupStartedAtMs == 0L || warmupStartedAtMs > candidateStart) {
-                warmupStartedAtMs = candidateStart
-            }
-            Log.i(TAG, "Sensor start from check age=$sensorAgeCounter sec (oldStart=$oldStart newStart=$candidateStart)")
-            persistAlgorithmState()
-        }
     }
 
     private fun handleInitResponse() {
@@ -1010,17 +1005,21 @@ class AnytimeBleManager(
         // stays aligned with backfilled ids, so prefer it when it materially
         // disagrees with the check-derived value.
         val driftMs = kotlin.math.abs(sensorStartAtMs - anchoredStartMs)
+        var changed = false
         if (sensorStartAtMs <= 0L || driftMs > intervalMs * 2L) {
             sensorStartAtMs = anchoredStartMs
             sensorstartmsec = anchoredStartMs
             if (warmupStartedAtMs == 0L || kotlin.math.abs(warmupStartedAtMs - anchoredStartMs) > intervalMs * 2L) {
                 warmupStartedAtMs = anchoredStartMs
             }
+            changed = true
             Log.i(TAG, "Sensor start from live glucose id=$glucoseId (oldStart=$oldSensorStart newStart=$anchoredStartMs)")
         }
         if (oldTimelineStart != anchoredStartMs) {
+            changed = true
             Log.i(TAG, "Glucose timeline from live id=$glucoseId (oldStart=$oldTimelineStart newStart=$anchoredStartMs)")
         }
+        if (changed) persistAlgorithmState()
     }
 
     private fun anchorSensorTimelineIfNeeded(glucoseId: Int, sampleMs: Long, intervalMs: Long) {
@@ -1228,7 +1227,13 @@ class AnytimeBleManager(
             } else {
                 lastGlucoseMgdlTimes10 / 10f
             },
-            rawValue = if (lastRawMgdl.isNaN()) lastIwNa else lastRawMgdl,
+            rawValue = if (lastRawMgdl.isNaN()) {
+                lastIwNa
+            } else if (Applic.unit == 1) {
+                lastRawMgdl * MGDL_TO_MMOLL
+            } else {
+                lastRawMgdl
+            },
             rate = Float.NaN,
             sensorGen = SENSOR_GEN,
         )
