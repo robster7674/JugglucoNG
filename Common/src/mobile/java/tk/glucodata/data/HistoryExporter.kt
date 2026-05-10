@@ -249,8 +249,11 @@ object HistoryExporter {
                                 val dateStr = READABLE_DATE_FORMAT.format(Date(entry.timestamp))
                                 val amount = entry.amount?.let { " · $it" }.orEmpty()
                                 val glucose = entry.glucoseValueMgDl?.let { " · ${it.toInt()} mg/dL" }.orEmpty()
+                                val duration = entry.durationMinutes?.let { " · ${it}min" }.orEmpty()
+                                val intensity = entry.intensity?.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
+                                val source = entry.source.takeIf { it.isNotBlank() && it != "manual" }?.let { " · $it" }.orEmpty()
                                 val note = entry.note?.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty()
-                                writer.write("$dateStr: ${entry.entryType} · ${entry.title}$amount$glucose$note\n")
+                                writer.write("$dateStr: ${entry.entryType} · ${entry.title}$amount$glucose$duration$intensity$source$note\n")
                             }
                         }
                         if (insulinPresets.isNotEmpty()) {
