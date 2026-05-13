@@ -74,6 +74,19 @@ class AnytimeQrTests {
     }
 
     @Test
+    fun parse_acceptsObservedTrailingKrFactoryCode() {
+        val parsed = AnytimeQr.parse("a645210531368109100A4")
+        assertNotNull(parsed)
+        parsed!!
+
+        assertEquals(AnytimeQrCalibration.Format.C, parsed.format)
+        assertTrue(parsed.isFactoryCalibration)
+        assertEquals(1.09f, parsed.k, 0.0001f)
+        assertEquals(1.0f, parsed.r, 0.0001f)
+        assertEquals(1, parsed.voltageFlag)
+    }
+
+    @Test
     fun parse_acceptsOfficialScannerPatternD() {
         val parsed = AnytimeQr.parse("Q1B2031234561234567ZZ")
         assertNotNull(parsed)

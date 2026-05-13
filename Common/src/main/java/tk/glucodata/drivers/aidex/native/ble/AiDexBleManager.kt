@@ -37,6 +37,7 @@ import tk.glucodata.Log
 import tk.glucodata.Natives
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.aidex.AiDexScanReceiver
 import tk.glucodata.drivers.aidex.AiDexDriver
 import tk.glucodata.drivers.aidex.CalibrationRecord as SharedCalibrationRecord
@@ -828,6 +829,14 @@ class AiDexBleManager(
     @Volatile private var _modelName: String = ""
     @Volatile private var _calibrationRecords: List<SharedCalibrationRecord> = emptyList()
     @Volatile private var _viewModeInternal: Int = 0
+    init {
+        val restored = restorePersistedViewMode()
+        _viewModeInternal = restored
+        applyViewModeToNative(restored)
+        if (restored != 0) {
+            Log.i(TAG, "Restored ViewMode=$restored for $SerialNumber")
+        }
+    }
     @Volatile private var _resetCompensationEnabled: Boolean = false
 
     // -- Broadcast Scan State --
@@ -2417,6 +2426,59 @@ class AiDexBleManager(
         }
     }
 
+    @SuppressLint("MissingPermission")
+    private fun enableAiDexNotification(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+    ): Boolean {
+        val descriptor = characteristic.getDescriptor(mCharacteristicConfigDescriptor)
+        if (descriptor == null) {
+            Log.e(TAG, "enableAiDexNotification: CCCD missing for ${characteristic.uuid}")
+            return false
+        }
+
+        val originalWriteType = characteristic.writeType
+        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        val writeAccepted = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val result = gatt.writeDescriptor(
+                    descriptor,
+                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE,
+                )
+                if (result != 0) {
+                    Log.e(TAG, "enableAiDexNotification: writeDescriptor(${characteristic.uuid}) failed code=$result")
+                    false
+                } else {
+                    true
+                }
+            } else {
+                if (!descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
+                    Log.e(TAG, "enableAiDexNotification: descriptor.setValue(${characteristic.uuid}) failed")
+                    false
+                } else if (!gatt.writeDescriptor(descriptor)) {
+                    Log.e(TAG, "enableAiDexNotification: writeDescriptor(${characteristic.uuid}) returned false")
+                    false
+                } else {
+                    true
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "enableAiDexNotification: writeDescriptor(${characteristic.uuid}) threw ${t.message}")
+            false
+        } finally {
+            characteristic.writeType = originalWriteType
+        }
+
+        if (!writeAccepted) return false
+
+        if (!gatt.setCharacteristicNotification(characteristic, true)) {
+            Log.e(TAG, "enableAiDexNotification: setCharacteristicNotification(${characteristic.uuid}) failed")
+            return false
+        }
+
+        Log.i(TAG, "enableAiDexNotification: descriptor write accepted for ${characteristic.uuid}")
+        return true
+    }
     // =========================================================================
     // CCCD Chain
     // =========================================================================
@@ -5274,7 +5336,27 @@ class AiDexBleManager(
 
     override var viewMode: Int
         get() = _viewModeInternal
-        set(value) { _viewModeInternal = value }
+        set(value) {
+            val normalized = ManagedSensorViewModeStore.sanitize(value)
+            _viewModeInternal = normalized
+            ManagedSensorViewModeStore.write(Applic.app, SerialNumber, normalized)
+            applyViewModeToNative(normalized)
+        }
+
+    private fun restorePersistedViewMode(): Int {
+        val nativeMode = if (dataptr != 0L) {
+            runCatching { Natives.getViewMode(dataptr) }.getOrDefault(0)
+        } else {
+            0
+        }
+        return ManagedSensorViewModeStore.read(Applic.app, SerialNumber, nativeMode)
+    }
+
+    private fun applyViewModeToNative(mode: Int) {
+        if (dataptr == 0L) return
+        runCatching { Natives.setViewMode(dataptr, mode) }
+            .onFailure { Log.w(TAG, "applyViewModeToNative failed: ${it.message}") }
+    }
 
     // =========================================================================
     // Broadcast Scanning

@@ -168,6 +168,7 @@ class AnytimeBleManager(
     @Volatile private var reconnectReason: String = ""
     @Volatile private var serviceDiscoveryHandled: Boolean = false
     @Volatile private var serviceDiscoveryRetryCount: Int = 0
+    @Volatile private var serviceDiscoveryRequestInFlight: Boolean = false
     @Volatile private var pendingCccdGatt: BluetoothGatt? = null
     @Volatile private var lastConnectRequestAtMs: Long = 0L
     @Volatile private var pendingFingerstickMgdl: Int = -1
@@ -190,6 +191,9 @@ class AnytimeBleManager(
 
     /** True only when this process restored an existing Anytime session cache. */
     @Volatile private var restoredGlucoseState: Boolean = false
+
+    /** Native/current.dat already existed even if AnytimeRegistry was wiped by delete/re-add. */
+    @Volatile private var nativeBackingExistedAtRestore: Boolean = false
 
     /** Fresh sessions first get a short recent tail, then the older prefix in background. */
     @Volatile private var freshPostLiveBackfillStarted: Boolean = false
@@ -229,6 +233,7 @@ class AnytimeBleManager(
 
     fun restoreFromPersistence(context: Context) {
         val id = SerialNumber ?: return
+        nativeBackingExistedAtRestore = hasExistingNativeBacking(context, id)
         viewMode = ManagedSensorViewModeStore.read(context, id, viewModeValue)
         val cachedDeviceName = AnytimeRegistry.loadDeviceName(context, id)
         familyEntry = AnytimeProfileResolver.familyEntry(cachedDeviceName)
@@ -260,6 +265,12 @@ class AnytimeBleManager(
         freshOlderBackfillStarted = false
         pendingFreshOlderBackfillStartId = -1
         lastBatteryVolts = loadCachedBatteryVolts(context, id)
+    }
+
+    private fun hasExistingNativeBacking(context: Context?, sensorId: String): Boolean {
+        if (context == null || sensorId.isBlank()) return false
+        val current = java.io.File(java.io.File(context.filesDir, "sensors/$sensorId"), "current.dat")
+        return current.exists() && current.length() > 0L
     }
 
     private fun restoreInitialViewMode(sensorId: String, nativePtr: Long): Int {
@@ -519,7 +530,14 @@ class AnytimeBleManager(
     }
 
     private fun postInitBackfillStartId(): Int {
-        if (!restoredGlucoseState) return 0
+        if (!restoredGlucoseState) {
+            val startId = (lastGlucoseId + 1).coerceAtLeast(0)
+            if (startId > 0 && nativeBackingExistedAtRestore) {
+                Log.i(TAG, "Existing native backing detected without AnytimeRegistry; post-init auto-backfill starts at id=$startId instead of replaying from zero")
+                return startId
+            }
+            return 0
+        }
         val startId = reconnectBackfillStartId()
         Log.i(TAG, "Restored Anytime state; post-init backfill will resume from id=$startId instead of replaying from zero")
         return startId
@@ -556,6 +574,11 @@ class AnytimeBleManager(
         if (restoredGlucoseState || freshOlderBackfillStarted) return
         val recentStartId = pendingFreshOlderBackfillStartId
         if (recentStartId <= 0) return
+        if (nativeBackingExistedAtRestore) {
+            freshOlderBackfillStarted = true
+            Log.i(TAG, "Existing native backing detected without AnytimeRegistry; skipping automatic older history replay id=0..${recentStartId - 1}")
+            return
+        }
         freshOlderBackfillStarted = true
         handler.postDelayed({
             if (!stop && phase == Phase.STREAMING && !historyBackfillActive) {
@@ -678,12 +701,18 @@ class AnytimeBleManager(
 
     private fun discoverServicesOrRetry(gatt: BluetoothGatt, reason: String) {
         if (stop || serviceDiscoveryHandled || mBluetoothGatt !== gatt || phase != Phase.DISCOVERING) return
+        if (serviceDiscoveryRequestInFlight) {
+            Log.d(TAG, "discoverServices($reason) skipped; request already in flight")
+            return
+        }
+        serviceDiscoveryRequestInFlight = true
         serviceDiscoveryRetryCount++
         val started = runCatching { gatt.discoverServices() }
             .onFailure { Log.stack(TAG, "discoverServices($reason)", it) }
             .getOrDefault(false)
         Log.d(TAG, "discoverServices($reason) started=$started attempt=$serviceDiscoveryRetryCount")
         if (!started) {
+            serviceDiscoveryRequestInFlight = false
             if (serviceDiscoveryRetryCount < MAX_SERVICE_DISCOVERY_RETRIES + 1) {
                 handler.postDelayed(serviceDiscoveryRetryRunnable, SERVICE_DISCOVERY_RETRY_DELAY_MS)
             } else {
@@ -723,6 +752,7 @@ class AnytimeBleManager(
         charWrite = null
         serviceDiscoveryHandled = false
         serviceDiscoveryRetryCount = 0
+        serviceDiscoveryRequestInFlight = false
         mBluetoothGatt = null
         mActiveBluetoothDevice = null
     }
@@ -991,6 +1021,7 @@ class AnytimeBleManager(
                 connectTime = System.currentTimeMillis()
                 serviceDiscoveryHandled = false
                 serviceDiscoveryRetryCount = 0
+                serviceDiscoveryRequestInFlight = false
                 phase = Phase.DISCOVERING
                 val mtuStarted = runCatching { gatt.requestMtu(AnytimeConstants.DEFAULT_MTU) }
                     .onFailure { Log.stack(TAG, "requestMtu", it) }
@@ -1027,6 +1058,15 @@ class AnytimeBleManager(
     }
 
     override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+        if (mBluetoothGatt !== gatt) {
+            Log.d(TAG, "Ignoring services callback from stale GATT")
+            return
+        }
+        if (serviceDiscoveryHandled) {
+            Log.d(TAG, "Ignoring duplicate services callback")
+            return
+        }
+        serviceDiscoveryRequestInFlight = false
         handler.removeCallbacks(serviceDiscoveryWatchdog)
         handler.removeCallbacks(serviceDiscoveryRetryRunnable)
         if (status != BluetoothGatt.GATT_SUCCESS) {

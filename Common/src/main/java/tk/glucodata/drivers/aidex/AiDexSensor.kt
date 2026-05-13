@@ -27,6 +27,7 @@ import tk.glucodata.Log
 import tk.glucodata.Applic
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.Natives
+import tk.glucodata.drivers.ManagedSensorViewModeStore
 import com.microtechmd.blecomm.BleAdapter
 import com.microtechmd.blecomm.BlecommLoader
 import com.microtechmd.blecomm.BluetoothDeviceStore
@@ -1426,13 +1427,19 @@ class AiDexSensor(context: Context, serial: String, dataptr: Long) : SuperGattCa
     override var viewMode: Int
         get() = viewModeInternal
         set(value) {
-            if (viewModeInternal == value) return
+            val normalized = ManagedSensorViewModeStore.sanitize(value)
+            if (viewModeInternal == normalized) {
+                ManagedSensorViewModeStore.write(Applic.app, SerialNumber, normalized)
+                if (dataptr != 0L) Natives.setViewMode(dataptr, normalized)
+                return
+            }
             val previous = viewModeInternal
-            viewModeInternal = value
+            viewModeInternal = normalized
+            ManagedSensorViewModeStore.write(Applic.app, SerialNumber, normalized)
             vendorRawFlatlineStreak = 0
             lastF003RawCandidateMgDl = 0f
             lastF003RawCandidateTime = 0L
-            if (!isRawLaneMode(previous) && isRawLaneMode(value)) {
+            if (!isRawLaneMode(previous) && isRawLaneMode(normalized)) {
                 if (shouldHydrateRawHistoryOnModeEnter()) {
                     vendorRawHistoryHydrationPending = true
                     lastHistoryRequestTime = 0L
@@ -1447,12 +1454,12 @@ class AiDexSensor(context: Context, serial: String, dataptr: Long) : SuperGattCa
                     )
                 }
             }
-            if (previous == 0 && value != 0) {
+            if (previous == 0 && normalized != 0) {
                 // Allow combined/raw modes to consume the most recent broadcast once.
                 lastBroadcastStoredOffsetMinutes = 0L
             }
-            Log.i(TAG, "ViewMode changed: $previous -> $value")
-            if (dataptr != 0L) Natives.setViewMode(dataptr, value)
+            Log.i(TAG, "ViewMode changed: $previous -> $normalized")
+            if (dataptr != 0L) Natives.setViewMode(dataptr, normalized)
             applyViewMode("viewMode", connectIfNeeded = true)
         }
 
@@ -1734,7 +1741,9 @@ class AiDexSensor(context: Context, serial: String, dataptr: Long) : SuperGattCa
         }
         // Load connection option (separate from viewMode)
         broadcastOnlyConnection = readBoolPref("broadcastOnlyConnection", false)
-        viewModeInternal = if (dataptr != 0L) Natives.getViewMode(dataptr) else 0
+        val nativeViewMode = if (dataptr != 0L) Natives.getViewMode(dataptr) else 0
+        viewModeInternal = ManagedSensorViewModeStore.read(Applic.app, serial, nativeViewMode)
+        if (dataptr != 0L) Natives.setViewMode(dataptr, viewModeInternal)
 
         // Set initial status for broadcast mode (prevents 'Searching for sensors' from SensorBluetooth)
         if (broadcastOnlyConnection) {

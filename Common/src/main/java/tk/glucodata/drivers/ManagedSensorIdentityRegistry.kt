@@ -79,6 +79,7 @@ object ManagedSensorIdentityRegistry {
 
     fun removePersistedSensor(context: Context, sensorId: String?) {
         all.forEach { it.removePersistedSensor(context, sensorId) }
+        ManagedSensorViewModeStore.clear(context, sensorId)
         SensorIdentity.invalidateCaches()
     }
 }

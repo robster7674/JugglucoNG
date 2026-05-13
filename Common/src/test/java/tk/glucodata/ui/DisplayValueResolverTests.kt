@@ -6,7 +6,7 @@ import org.junit.Test
 
 class DisplayValueResolverTests {
 
-    @Test
+//    @Test
 //    fun autoRawWithCalibrationKeepsTwoLanes() {
 //        val values = DisplayValueResolver.resolve(
 //            autoValue = 4.1f,

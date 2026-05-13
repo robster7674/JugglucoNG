@@ -555,10 +555,7 @@ public abstract class SuperGattCallback extends BluetoothGattCallback {
         final ExchangeGlucosePayload exchangePayload = shouldResolveExchangePayload
                 ? ExchangeGlucosePayload.resolve(SerialNumber, gl, rate, timmsec, sensorgen, sglucose.value)
                 : null;
-        final boolean collapseExchangeUpdates =
-                DataSmoothing.getMinutes(app) > 0
-                && !DataSmoothing.isGraphOnly(app)
-                && DataSmoothing.collapseChunks(app);
+        final boolean collapseExchangeUpdates = DataSmoothing.shouldCollapseExchangeOutputs(app);
         final boolean shouldEmitExchangeUpdate =
                 exchangePayload != null
                 && shouldEmitExchangeUpdate(exchangePayload.getSensorId(), exchangePayload.getTimeMillis(), collapseExchangeUpdates);
