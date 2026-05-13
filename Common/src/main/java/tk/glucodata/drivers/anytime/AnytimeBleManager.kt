@@ -79,6 +79,12 @@ class AnytimeBleManager(
         /** Backfill loop: gap between consecutive pulls when records keep arriving. */
         private const val HISTORY_PULL_BATCH_DELAY_MS = 10L
 
+        /** Official CT2.5/CT3A/CT4 0x22 history request batch size. */
+        private const val HISTORY_PULL_SERIES_COUNT = 15
+
+        /** Do not let a lost streaming-history response wedge the backfill loop forever. */
+        private const val HISTORY_PULL_TIMEOUT_MS = 8_000L
+
         /** How many empty pull responses in a row count as "caught up". */
         private const val HISTORY_EMPTY_RESPONSES_TO_STOP = 2
 
@@ -99,8 +105,8 @@ class AnytimeBleManager(
 
         /**
          * Fresh installs should become useful quickly, then continue filling older
-         * history in the background. CT4 pulls are one-record-per-request, so doing
-         * id=0..current before showing the recent tail feels broken.
+         * history in the background. Full-prefix backfill can still be several
+         * hundred records, so recent tail stays first even with batched pulls.
          */
         private const val FRESH_AUTO_BACKFILL_RECORDS = 24
 
@@ -172,6 +178,7 @@ class AnytimeBleManager(
     @Volatile private var pendingCccdGatt: BluetoothGatt? = null
     @Volatile private var lastConnectRequestAtMs: Long = 0L
     @Volatile private var pendingFingerstickMgdl: Int = -1
+    @Volatile private var pendingFingerstickTargetGlucoseId: Int = -1
     @Volatile private var pendingKrPush: Boolean = false
     @Volatile private var lastProtocolFrameAtMs: Long = 0L
     @Volatile private var lastProtocolFrameTag: String = ""
@@ -205,6 +212,8 @@ class AnytimeBleManager(
     @Volatile private var historyEmptyResponsesInARow: Int = 0
     @Volatile private var historyLastPulledId: Int = -1
     @Volatile private var historyPullInFlight: Boolean = false
+    @Volatile private var historyPullInFlightWasLegacySeries: Boolean = false
+    @Volatile private var legacySeriesHistorySupported: Boolean = true
     @Volatile private var historyStopBeforeId: Int = Int.MAX_VALUE
     @Volatile private var historyBackfillReason: String = ""
 
@@ -252,6 +261,8 @@ class AnytimeBleManager(
         sensorStartAtMs = AnytimeRegistry.loadSensorStartAt(context, id)
         warmupStartedAtMs = AnytimeRegistry.loadWarmupStartedAt(context, id)
         bound = AnytimeRegistry.loadBound(context, id)
+        lastReferenceBgMgdlTimes10 = AnytimeRegistry.loadReferenceBgMgdlTimes10(context, id)
+        lastReferenceBgGlucoseId = AnytimeRegistry.loadReferenceBgGlucoseId(context, id)
         ct5CipherKey = AnytimeRegistry.loadCt5CipherKey(context, id)
         ct5RandomB = AnytimeRegistry.loadCt5RandomB(context, id)
         ct5TempId = AnytimeRegistry.loadCt5TempId(context, id)
@@ -340,6 +351,8 @@ class AnytimeBleManager(
         AnytimeRegistry.saveLastGlucoseId(ctx, id, lastGlucoseId)
         AnytimeRegistry.saveSensorStartAt(ctx, id, sensorStartAtMs)
         AnytimeRegistry.saveWarmupStartedAt(ctx, id, warmupStartedAtMs)
+        AnytimeRegistry.saveReferenceBgMgdlTimes10(ctx, id, lastReferenceBgMgdlTimes10)
+        AnytimeRegistry.saveReferenceBgGlucoseId(ctx, id, lastReferenceBgGlucoseId)
         saveCachedBatteryVolts(ctx, id, lastBatteryVolts)
         AnytimeRegistry.saveRawHistory(ctx, id, synchronized(rawAlgorithmWindow) { rawAlgorithmWindow.values.toList() })
         AnytimeRegistry.saveCt5CipherKey(ctx, id, ct5CipherKey)
@@ -431,11 +444,38 @@ class AnytimeBleManager(
         }
         historyLastPulledId = nextId - 1
         historyPullInFlight = true
-        Log.d(TAG, "Backfill pull next id=$nextId")
-        if (!writeFrame(pullGlucoseFrame(nextId), "pullGlucose(backfill)")) {
+        val count = historyPullCount(nextId)
+        historyPullInFlightWasLegacySeries = count > 1 && !isCt5()
+        Log.d(TAG, "Backfill pull next id=$nextId count=$count")
+        armHistoryPullTimeout()
+        if (!writeFrame(pullGlucoseFrame(nextId, count), "pullGlucose(backfill,count=$count)")) {
+            clearHistoryPullTimeout()
             historyPullInFlight = false
+            historyPullInFlightWasLegacySeries = false
             handler.postDelayed(historyBackfillRunnable, HISTORY_PULL_BATCH_DELAY_MS)
         }
+    }
+
+    private val historyPullTimeoutRunnable = Runnable {
+        if (stop || !historyBackfillActive || !historyPullInFlight) return@Runnable
+        val retryId = (historyLastPulledId + 1).coerceAtLeast(0)
+        Log.w(TAG, "History pull timeout at id=$retryId series=$historyPullInFlightWasLegacySeries")
+        if (historyPullInFlightWasLegacySeries && legacySeriesHistorySupported) {
+            legacySeriesHistorySupported = false
+            Log.w(TAG, "Disabling 0x22 batched history for this session; falling back to 0x08 single-record pulls")
+        }
+        historyPullInFlight = false
+        historyPullInFlightWasLegacySeries = false
+        handler.postDelayed(historyBackfillRunnable, HISTORY_PULL_BATCH_DELAY_MS)
+    }
+
+    private fun armHistoryPullTimeout() {
+        handler.removeCallbacks(historyPullTimeoutRunnable)
+        handler.postDelayed(historyPullTimeoutRunnable, HISTORY_PULL_TIMEOUT_MS)
+    }
+
+    private fun clearHistoryPullTimeout() {
+        handler.removeCallbacks(historyPullTimeoutRunnable)
     }
 
     private val protocolFrameTimeoutRunnable = Runnable {
@@ -681,8 +721,10 @@ class AnytimeBleManager(
         if (rememberForReconnect) rememberInterruptedBackfill()
         historyBackfillActive = false
         historyPullInFlight = false
+        historyPullInFlightWasLegacySeries = false
         historyStopBeforeId = Int.MAX_VALUE
         historyBackfillReason = ""
+        clearHistoryPullTimeout()
         handler.removeCallbacks(historyBackfillRunnable)
     }
 
@@ -825,6 +867,16 @@ class AnytimeBleManager(
 
     private fun usesWideRawRecords(): Boolean = usesSummedFrames() && !isCt5()
 
+    private fun supportsLegacySeriesHistory(): Boolean =
+        legacySeriesHistorySupported && usesWideRawRecords()
+
+    private fun historyPullCount(nextId: Int): Int {
+        if (isCt5()) return HISTORY_PULL_SERIES_COUNT
+        if (!supportsLegacySeriesHistory()) return 1
+        val stopRemaining = (historyStopBeforeId - nextId).coerceAtLeast(1)
+        return HISTORY_PULL_SERIES_COUNT.coerceAtMost(stopRemaining)
+    }
+
     private fun checkFrame(): ByteArray =
         if (usesSummedFrames()) AnytimeFrames.Builders.checkSummed() else AnytimeFrames.Builders.check()
 
@@ -851,8 +903,9 @@ class AnytimeBleManager(
         else if (usesSummedFrames()) AnytimeFrames.Builders.setDateSummed()
         else AnytimeFrames.Builders.setDate()
 
-    private fun pullGlucoseFrame(nextId: Int): ByteArray =
-        if (isCt5()) AnytimeFrames.Builders.ct5PullGlucoseSeries(nextId)
+    private fun pullGlucoseFrame(nextId: Int, count: Int = 1): ByteArray =
+        if (isCt5()) AnytimeFrames.Builders.ct5PullGlucoseSeries(nextId, count.coerceAtLeast(1))
+        else if (count > 1 && supportsLegacySeriesHistory()) AnytimeFrames.Builders.pullGlucoseSeriesSummed(nextId, count)
         else if (usesPlainControlFrames()) AnytimeFrames.Builders.pullGlucose(nextId)
         else if (usesSummedFrames()) AnytimeFrames.Builders.pullGlucoseSummed(nextId)
         else AnytimeFrames.Builders.pullGlucose(nextId)
@@ -1268,6 +1321,7 @@ class AnytimeBleManager(
             AnytimeConstants.RX_INIT -> handleInitResponse()
             AnytimeConstants.RX_PUSH_GLUCOSE -> handleGlucoseFrame(data, push = true)
             AnytimeConstants.RX_PULL_GLUCOSE -> handleGlucoseFrame(data, push = false)
+            AnytimeConstants.RX_SERIES -> handleGlucoseFrame(data, push = false)
             AnytimeConstants.RX_INPUT_BG_ACK -> handleInputBgAck(data)
             AnytimeConstants.RX_UNBIND_ACK -> handleUnbindAck()
             AnytimeConstants.RX_INPUT_KR_ACK -> handleInputKrAck()
@@ -1463,11 +1517,14 @@ class AnytimeBleManager(
 
     private fun handleInputBgAck(data: ByteArray) {
         Log.i(TAG, "Fingerstick BG accepted: ${data.joinToHex()}")
-        if (pendingFingerstickMgdl > 0 && lastGlucoseId >= 0) {
+        if (pendingFingerstickMgdl > 0 && pendingFingerstickTargetGlucoseId > 0) {
             lastReferenceBgMgdlTimes10 = pendingFingerstickMgdl * 10
-            lastReferenceBgGlucoseId = lastGlucoseId
+            lastReferenceBgGlucoseId = pendingFingerstickTargetGlucoseId
+            Log.i(TAG, "Fingerstick BG ${pendingFingerstickMgdl}mg/dL will calibrate glucose id=$lastReferenceBgGlucoseId")
         }
         pendingFingerstickMgdl = -1
+        pendingFingerstickTargetGlucoseId = -1
+        persistAlgorithmState()
     }
 
     private fun handleUnbindAck() {
@@ -1623,13 +1680,21 @@ class AnytimeBleManager(
     }
 
     private fun handleRawGlucose(data: ByteArray, push: Boolean) {
-        val records = AnytimeFrames.parseRawRecords(data, usesWideRawRecords())
+        val records = if (!push && data.firstOrNull() == AnytimeConstants.RX_SERIES) {
+            AnytimeFrames.parseWideRawSeriesRecords(data)
+        } else {
+            AnytimeFrames.parseRawRecords(data, usesWideRawRecords())
+        }
         val context = Applic.app
         val intervalMs = profile.readingIntervalMinutes * 60L * 1000L
         if (records.isEmpty()) {
             // Empty pull response — transmitter has nothing more to give.
             Log.d(TAG, "Empty raw frame (pull caught-up): ${data.joinToHex()}")
-            if (!push) historyPullInFlight = false
+            if (!push) {
+                clearHistoryPullTimeout()
+                historyPullInFlight = false
+                historyPullInFlightWasLegacySeries = false
+            }
             if (historyBackfillActive) {
                 historyEmptyResponsesInARow++
                 if (historyEmptyResponsesInARow >= HISTORY_EMPTY_RESPONSES_TO_STOP) {
@@ -1643,7 +1708,9 @@ class AnytimeBleManager(
         }
         historyEmptyResponsesInARow = 0
         if (!push) {
+            clearHistoryPullTimeout()
             historyPullInFlight = false
+            historyPullInFlightWasLegacySeries = false
             records.maxOfOrNull { it.glucoseId }?.let { maxId ->
                 if (maxId > historyLastPulledId) historyLastPulledId = maxId
             }
@@ -2169,8 +2236,11 @@ class AnytimeBleManager(
     }
 
     override fun pushReferenceBg(mgdl: Int): Boolean {
-        if (mgdl <= 0) return false
+        if (mgdl <= 0 || lastGlucoseId < 0) return false
         pendingFingerstickMgdl = mgdl
+        // Official Anytime stores a calibration entered at current glucose id N
+        // as an event for the next algorithm sample, N+1.
+        pendingFingerstickTargetGlucoseId = lastGlucoseId + 1
         return if (phase == Phase.STREAMING) {
             writeFrame(inputBgFrame(mgdl), "inputBg($mgdl)")
             true

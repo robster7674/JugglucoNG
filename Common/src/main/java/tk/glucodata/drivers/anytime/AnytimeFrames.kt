@@ -9,6 +9,7 @@
 //   AnytimeFrames.verifySum(bytes)           — true if last byte == sum of rest
 //   AnytimeFrames.builders                   — CT3 packet builders
 //   AnytimeFrames.parseRawRecords(bytes)     — 9-byte or 11-byte raw records
+//   AnytimeFrames.parseWideRawSeriesRecords  — 0x22 CT2.5/CT3A/CT4 history batches
 //   AnytimeFrames.parseComputedRecord(bytes) — 19-byte computed glucose record
 //   AnytimeFrames.parseCheckResponse(bytes)  — 0x05 health response
 //   AnytimeFrames.parseResetResponse(bytes)  — 0x11 reset response
@@ -208,6 +209,19 @@ object AnytimeFrames {
             )
         }
 
+        /** {0x22, idLo, idHi, count, sum} — CT2.5/CT3A/CT4 multi-record history pull. */
+        @JvmStatic
+        @JvmOverloads
+        fun pullGlucoseSeriesSummed(nextId: Int, count: Int = 15): ByteArray {
+            val id = nextId and 0xFFFF
+            return withSum(
+                AnytimeConstants.TX_PULL_GLUCOSE_SERIES.toInt() and 0xFF,
+                id and 0xFF,
+                (id ushr 8) and 0xFF,
+                count.coerceIn(1, 15),
+            )
+        }
+
         /** {0x0C, idLo, idHi} — re-fetch as transmitter-computed glucose. */
         @JvmStatic
         fun fetchComputedGlucose(nextId: Int): ByteArray {
@@ -226,8 +240,9 @@ object AnytimeFrames {
          */
         @JvmStatic
         fun inputBgMg(mgdl: Int): ByteArray {
-            // mmol = mgdl / 18.0; one decimal of precision.
-            val tenths = ((mgdl * 10) / 18) // truncating mirror of the official app
+            // mmol = mgdl / 18.0, rounded to one decimal like BigDecimal(..., HALF_UP)
+            // in the official app's ProtocolToolsHolder.inputBGMGRequest*().
+            val tenths = ((mgdl / 18f) * 10f).roundToInt()
             val intPart = tenths / 10
             val fracPart = tenths - intPart * 10
             return byteArrayOf(
@@ -240,7 +255,7 @@ object AnytimeFrames {
         /** {0x09, mmolInt, mmolFrac/10, sum}. */
         @JvmStatic
         fun inputBgMgSummed(mgdl: Int): ByteArray {
-            val tenths = ((mgdl * 10) / 18)
+            val tenths = ((mgdl / 18f) * 10f).roundToInt()
             val intPart = tenths / 10
             val fracPart = tenths - intPart * 10
             return withSum(
@@ -679,6 +694,53 @@ object AnytimeFrames {
             )
             offset += AnytimeConstants.WIDE_RAW_RECORD_SIZE
             index++
+        }
+        return out
+    }
+
+    /**
+     * Parse `pullGlucoseRequest_series_CT2_5(id, count)` responses:
+     * `{0x22, startIdLo, startIdHi, N * [ibHi, ibLo, iwHi, iwLo, t+40, tFrac], sum}`.
+     * Official parser accepts both 0x22 variable-length frames and a 244-byte 0x0D
+     * legacy dump; this driver requests only the explicit 0x22 counted form.
+     */
+    @JvmStatic
+    fun parseWideRawSeriesRecords(bytes: ByteArray): List<AnytimeRawRecord> {
+        if (bytes.size < 4 || bytes[0] != AnytimeConstants.RX_SERIES || !verifySum(bytes)) return emptyList()
+        val startId = (bytes[1].toInt() and 0xFF) or ((bytes[2].toInt() and 0xFF) shl 8)
+        val payloadEndExclusive = bytes.size - 1
+        if (payloadEndExclusive <= 3) return emptyList()
+        val chunkCount = (payloadEndExclusive - 3) / AnytimeConstants.WIDE_RAW_SERIES_CHUNK_SIZE
+        val out = ArrayList<AnytimeRawRecord>(chunkCount)
+        for (i in 0 until chunkCount) {
+            val offset = 3 + i * AnytimeConstants.WIDE_RAW_SERIES_CHUNK_SIZE
+            val ibRaw = u16(bytes[offset], bytes[offset + 1])
+            val iwRaw = u16(bytes[offset + 2], bytes[offset + 3])
+            val tPlus40 = bytes[offset + 4].toInt() and 0xFF
+            val tFrac = bytes[offset + 5].toInt() and 0xFF
+            val temperature = (tPlus40 - AnytimeConstants.TEMP_INT_OFFSET) + tFrac / 100f
+            if (ibRaw >= 0xFFF0 || iwRaw >= 0xFFF0 || temperature !in -20f..80f) break
+            val id = startId + i
+            val recordBytes = byteArrayOf(
+                (id and 0xFF).toByte(),
+                ((id ushr 8) and 0xFF).toByte(),
+                bytes[offset],
+                bytes[offset + 1],
+                bytes[offset + 2],
+                bytes[offset + 3],
+                bytes[offset + 4],
+                bytes[offset + 5],
+            )
+            out.add(
+                AnytimeRawRecord(
+                    indexInPacket = i,
+                    glucoseId = id,
+                    ibNa = ibRaw / 100f,
+                    iwNa = iwRaw / 100f,
+                    temperatureC = temperature,
+                    recordBytes = recordBytes,
+                )
+            )
         }
         return out
     }

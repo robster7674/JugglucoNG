@@ -14,6 +14,8 @@
 //   anytime_device_name_<id> → advertised name (for family resolve after restart)
 //   anytime_tx_version_<id>  → firmware version string (e.g. "V1300")
 //   anytime_bound_<id>       → 1/0 ("known bound from previous session")
+//   anytime_ref_bg_x10_<id>  → latest accepted fingerstick reference, mg/dL × 10
+//   anytime_ref_bg_id_<id>   → glucose id the reference applies to
 //   anytime_raw_history_<id> → compact raw id/Ib/Iw/T history for JNI restore
 //   anytime_ct5_cipher_<id>  → CT5 session cipher byte (0..255), -1 if unknown
 //   anytime_ct5_randomb_<id> → CT5 reconnect identity randomB, hex encoded
@@ -177,6 +179,24 @@ object AnytimeRegistry {
         prefs(c).edit().putBoolean(AnytimeConstants.PREF_BOUND_PREFIX + id, bound).apply()
     }
 
+    @JvmStatic fun loadReferenceBgMgdlTimes10(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + id, 0)
+    @JvmStatic fun saveReferenceBgMgdlTimes10(c: Context, id: String, value: Int) {
+        val editor = prefs(c).edit()
+        if (value > 0) editor.putInt(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + id, value)
+        else editor.remove(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + id)
+        editor.apply()
+    }
+
+    @JvmStatic fun loadReferenceBgGlucoseId(c: Context, id: String): Int =
+        prefs(c).getInt(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + id, 0)
+    @JvmStatic fun saveReferenceBgGlucoseId(c: Context, id: String, glucoseId: Int) {
+        val editor = prefs(c).edit()
+        if (glucoseId > 0) editor.putInt(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + id, glucoseId)
+        else editor.remove(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + id)
+        editor.apply()
+    }
+
     @JvmStatic fun loadCt5CipherKey(c: Context, id: String): Int =
         prefs(c).getInt(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + id, -1)
     @JvmStatic fun saveCt5CipherKey(c: Context, id: String, key: Int) {
@@ -280,6 +300,8 @@ object AnytimeRegistry {
             remove(AnytimeConstants.PREF_DEVICE_NAME_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_TRANSMITTER_VERSION_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_BOUND_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_REF_BG_MGDL_TIMES10_PREFIX + sensorId)
+            remove(AnytimeConstants.PREF_REF_BG_GLUCOSE_ID_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_RAW_HISTORY_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_CIPHER_KEY_PREFIX + sensorId)
             remove(AnytimeConstants.PREF_CT5_RANDOM_B_PREFIX + sensorId)

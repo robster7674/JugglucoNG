@@ -70,6 +70,71 @@ class AnytimeFramesTests {
     }
 
     @Test
+    fun pullGlucoseSeriesSummedBuildsOfficialCt4BatchRequest() {
+        val frame = AnytimeFrames.Builders.pullGlucoseSeriesSummed(147, 15)
+
+        assertEquals(
+            listOf(0x22, 0x93, 0x00, 0x0F, 0xC4),
+            frame.map { it.toInt() and 0xFF },
+        )
+    }
+
+    @Test
+    fun parseWideRawSeriesRecordsMatchesOfficialCt4BatchLayout() {
+        val frame = byteArrayOf(
+            0x22,
+            0x93.toByte(),
+            0x00,
+            0x01,
+            0xB7.toByte(),
+            0x05,
+            0x5E,
+            0x49,
+            0x0A,
+            0x01,
+            0xC2.toByte(),
+            0x05,
+            0x64,
+            0x49,
+            0x19,
+            0x00,
+        )
+        frame[frame.lastIndex] = AnytimeFrames.sum(frame, 0, frame.lastIndex - 1)
+
+        val records = AnytimeFrames.parseWideRawSeriesRecords(frame)
+
+        assertEquals(2, records.size)
+        assertEquals(147, records[0].glucoseId)
+        assertEquals(4.39f, records[0].ibNa, 0.001f)
+        assertEquals(13.74f, records[0].iwNa, 0.001f)
+        assertEquals(33.10f, records[0].temperatureC, 0.001f)
+        assertEquals(148, records[1].glucoseId)
+        assertEquals(4.50f, records[1].ibNa, 0.001f)
+        assertEquals(13.80f, records[1].iwNa, 0.001f)
+        assertEquals(33.25f, records[1].temperatureC, 0.001f)
+    }
+
+    @Test
+    fun parseWideRawSeriesRecordsAcceptsEmptyCaughtUpFrame() {
+        val frame = byteArrayOf(0x22, 0x93.toByte(), 0x00, 0x00)
+        frame[frame.lastIndex] = AnytimeFrames.sum(frame, 0, frame.lastIndex - 1)
+
+        assertTrue(AnytimeFrames.parseWideRawSeriesRecords(frame).isEmpty())
+    }
+
+    @Test
+    fun inputBgRoundsToOfficialOneDecimalMmol() {
+        assertEquals(
+            listOf(0x09, 0x05, 0x06),
+            AnytimeFrames.Builders.inputBgMg(100).map { it.toInt() and 0xFF },
+        )
+        assertEquals(
+            listOf(0x09, 0x05, 0x06, 0x14),
+            AnytimeFrames.Builders.inputBgMgSummed(100).map { it.toInt() and 0xFF },
+        )
+    }
+
+    @Test
     fun ct5EncodeDecodeRoundTripMatchesOfficialInversePair() {
         val plain = byteArrayOf(0x01, 0x09, 0x01, 0x00, 0x03, 0x53, 0x55, 0x00, 0x31, 0x32, 0x33, 0x34)
         val key = 0x5A

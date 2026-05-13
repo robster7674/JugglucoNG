@@ -211,7 +211,7 @@ object AnytimeAlgorithm {
                 setSensorInfo(calibration.rawQr)
                 setTransmitterName(sensorIdName, calibration.voltageFlag)
                 setAlgorithm(nativeAlgorithm(family, calibration.voltageFlag))
-                if (lastReferenceBgGlucoseId > 0 && lastReferenceBgMgdlTimes10 > 0) {
+                if (record.glucoseId == lastReferenceBgGlucoseId && lastReferenceBgMgdlTimes10 > 0) {
                     setNewBgToGlucoseId(lastReferenceBgGlucoseId)
                     setNewBgValue(lastReferenceBgMgdlTimes10 / 10)
                 }
@@ -247,7 +247,7 @@ object AnytimeAlgorithm {
         return runCatching {
             val eventIds: IntArray
             val bgValues: IntArray
-            if (lastReferenceBgGlucoseId > 0 && lastReferenceBgMgdlTimes10 > 0) {
+            if (lastReferenceBgGlucoseId in 1..record.glucoseId && lastReferenceBgMgdlTimes10 > 0) {
                 eventIds = intArrayOf(lastReferenceBgGlucoseId)
                 bgValues = intArrayOf(lastReferenceBgMgdlTimes10 / 10)
             } else {
@@ -299,7 +299,7 @@ object AnytimeAlgorithm {
         return runCatching {
             val eventIds: IntArray?
             val bgValues: IntArray?
-            if (lastReferenceBgGlucoseId > 0 && lastReferenceBgMgdlTimes10 > 0) {
+            if (lastReferenceBgGlucoseId in 1..record.glucoseId && lastReferenceBgMgdlTimes10 > 0) {
                 eventIds = intArrayOf(lastReferenceBgGlucoseId)
                 bgValues = intArrayOf(lastReferenceBgMgdlTimes10 / 10)
             } else {

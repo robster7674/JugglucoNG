@@ -64,6 +64,9 @@ object AnytimeConstants {
     /** Pull next glucose record by id. Body: {0x08, idLo, idHi}. */
     const val TX_PULL_GLUCOSE: Byte = 0x08
 
+    /** Pull a counted raw-history series. Body: {0x22, idLo, idHi, count, sum}. */
+    const val TX_PULL_GLUCOSE_SERIES: Byte = 0x22
+
     /** Upload fingerstick reference BG. Body: {0x09, mmolInt, mmolFrac/10}. */
     const val TX_INPUT_BG_MG: Byte = 0x09
 
@@ -150,7 +153,7 @@ object AnytimeConstants {
     /** Formal version response (≥6 bytes — version string starts at byte 1). */
     const val RX_TRANSMITTER_FORMAL: Byte = 0x20
 
-    /** Series response (CT5 push). */
+    /** Counted CT2.5/CT3A/CT4 raw-history series response. */
     const val RX_SERIES: Byte = 0x22
 
     /** CT5 reconnect identity check response. */
@@ -172,6 +175,7 @@ object AnytimeConstants {
 
     const val RAW_RECORD_SIZE = 9
     const val WIDE_RAW_RECORD_SIZE = 11
+    const val WIDE_RAW_SERIES_CHUNK_SIZE = 6
     const val CT5_RAW_CHUNK_SIZE = 11
     const val CT5_VOLTAGE_CHUNK_SIZE = 15
     const val RAW_OFFSET_OPCODE = 0
@@ -442,6 +446,8 @@ object AnytimeConstants {
     const val PREF_DEVICE_NAME_PREFIX = "anytime_device_name_"
     const val PREF_TRANSMITTER_VERSION_PREFIX = "anytime_tx_version_"
     const val PREF_BOUND_PREFIX = "anytime_bound_"
+    const val PREF_REF_BG_MGDL_TIMES10_PREFIX = "anytime_ref_bg_x10_"
+    const val PREF_REF_BG_GLUCOSE_ID_PREFIX = "anytime_ref_bg_id_"
     const val PREF_RAW_HISTORY_PREFIX = "anytime_raw_history_"
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
     const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"
