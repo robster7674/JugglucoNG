@@ -121,6 +121,7 @@ private fun HistoryRoute(
     val journalDoseCalculatorEnabled by dashboardViewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
     val journalEntries by dashboardViewModel.journalEntries.collectAsStateWithLifecycle()
     val journalInsulinPresets by dashboardViewModel.journalInsulinPresets.collectAsStateWithLifecycle()
+    val journalFoods by dashboardViewModel.journalFoods.collectAsStateWithLifecycle()
     val predictionCarbRatioGramsPerUnit by dashboardViewModel.predictionCarbRatioGramsPerUnit.collectAsStateWithLifecycle()
     val predictionInsulinSensitivityMgDlPerUnit by dashboardViewModel.predictionInsulinSensitivityMgDlPerUnit.collectAsStateWithLifecycle()
     val calibrations by tk.glucodata.data.calibration.CalibrationManager.calibrations.collectAsStateWithLifecycle()
@@ -151,6 +152,7 @@ private fun HistoryRoute(
         journalEnabled = journalEnabled,
         journalEntries = scopedJournalEntries,
         journalInsulinPresets = journalInsulinPresets,
+        journalFoods = journalFoods,
         onBack = onBack,
         onPointClick = { point ->
             onTriggerCalibration(CalibrationSheetState.New(point.value, point.rawValue, point.timestamp))
@@ -190,6 +192,7 @@ private fun HistoryRoute(
             suggestedChartAnchorGlucoseMgDl = request.suggestedChartAnchorGlucoseMgDl,
             suggestedAmountFraction = request.suggestedAmountFraction,
             insulinPresets = journalInsulinPresets,
+            foods = journalFoods,
             doseJournalEntries = scopedJournalEntries,
             doseProfile = JournalDoseProfile(
                 enabled = journalEnabled && journalDoseCalculatorEnabled,

@@ -60,6 +60,7 @@ import tk.glucodata.R
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
+import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.ui.journal.buildJournalChartMarkers
 import tk.glucodata.ui.journal.journalTypeColor
@@ -361,6 +362,7 @@ fun HistoryBrowseScreen(
     journalEnabled: Boolean = false,
     journalEntries: List<JournalEntry> = emptyList(),
     journalInsulinPresets: List<JournalInsulinPreset> = emptyList(),
+    journalFoods: List<JournalFood> = emptyList(),
     onBack: (() -> Unit)? = null,
     onPointClick: ((GlucosePoint) -> Unit)? = null,
     onDeleteReading: ((GlucosePoint) -> Unit)? = null,
@@ -372,6 +374,7 @@ fun HistoryBrowseScreen(
     val coroutineScope = rememberCoroutineScope()
     val sortedHistory = remember(glucoseHistory) { glucoseHistory.sortedBy { it.timestamp } }
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
+    val journalFoodsById = remember(journalFoods) { journalFoods.associateBy { it.id } }
     val availableRange = remember(sortedHistory, journalEntries) {
         resolveAvailableTimelineRange(sortedHistory, journalEntries)
     }
@@ -448,8 +451,8 @@ fun HistoryBrowseScreen(
         )
     }
     val visibleSections = remember(visibleTimelineRows) { buildHistorySections(visibleTimelineRows) }
-    val journalMarkers = remember(filteredJournalEntries, journalPresetsById, unit, activeHistory) {
-        buildJournalChartMarkers(filteredJournalEntries, journalPresetsById, unit, activeHistory)
+    val journalMarkers = remember(filteredJournalEntries, journalPresetsById, journalFoodsById, unit, activeHistory) {
+        buildJournalChartMarkers(filteredJournalEntries, journalPresetsById, unit, activeHistory, journalFoodsById)
     }
     val journalEntriesById = remember(filteredJournalEntries) { filteredJournalEntries.associateBy { it.id } }
 

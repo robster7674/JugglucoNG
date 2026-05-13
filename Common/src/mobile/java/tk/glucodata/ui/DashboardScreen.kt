@@ -149,6 +149,7 @@ import tk.glucodata.UiRefreshBus
 import android.widget.Toast
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryType
+import tk.glucodata.data.journal.JournalFood
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.prediction.GlucosePredictionSeries
 import tk.glucodata.data.prediction.GlucosePredictionSeriesKind
@@ -309,6 +310,7 @@ fun DashboardScreen(
     val predictionHorizonMinutes by viewModel.predictionHorizonMinutes.collectAsState()
     val journalEntries by viewModel.journalEntries.collectAsState()
     val journalInsulinPresets by viewModel.journalInsulinPresets.collectAsState()
+    val journalFoods by viewModel.journalFoods.collectAsState()
     val sensorStatus by viewModel.sensorStatus.collectAsState()
     val sensorProgress by viewModel.sensorProgress.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
@@ -345,6 +347,7 @@ fun DashboardScreen(
 
     val coroutineScope = rememberCoroutineScope()
     val journalPresetsById = remember(journalInsulinPresets) { journalInsulinPresets.associateBy { it.id } }
+    val journalFoodsById = remember(journalFoods) { journalFoods.associateBy { it.id } }
     val activeJournalPresets = remember(journalInsulinPresets) { journalInsulinPresets.filter { !it.isArchived } }
     // Mirror the History route: journal entries are time-bound, not
     // sensor-bound. Scoping them by the active sensor would silently hide
@@ -352,11 +355,11 @@ fun DashboardScreen(
     val scopedJournalEntries = remember(journalEnabled, journalEntries) {
         if (!journalEnabled) emptyList() else journalEntries
     }
-    val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, unit, glucoseHistory) {
+    val journalChartMarkers = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalFoodsById, unit, glucoseHistory) {
         if (!journalEnabled || scopedJournalEntries.isEmpty()) {
             emptyList()
         } else {
-            buildJournalChartMarkers(scopedJournalEntries, journalPresetsById, unit, glucoseHistory)
+            buildJournalChartMarkers(scopedJournalEntries, journalPresetsById, unit, glucoseHistory, journalFoodsById)
         }
     }
     val activeInsulinSummary = remember(journalEnabled, scopedJournalEntries, journalPresetsById, journalNow) {
@@ -607,6 +610,7 @@ fun DashboardScreen(
             suggestedChartAnchorGlucoseMgDl = request.suggestedChartAnchorGlucoseMgDl,
             suggestedAmountFraction = request.suggestedAmountFraction,
             insulinPresets = if (request.existingEntry != null) journalInsulinPresets else activeJournalPresets,
+            foods = journalFoods,
             doseJournalEntries = scopedJournalEntries,
             doseProfile = JournalDoseProfile(
                 enabled = journalEnabled && journalDoseCalculatorEnabled,

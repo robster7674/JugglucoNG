@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
@@ -100,6 +101,8 @@ import kotlin.math.sin
 import tk.glucodata.R
 import tk.glucodata.data.journal.JournalBuiltInCurveProfile
 import tk.glucodata.data.journal.JournalCurvePoint
+import tk.glucodata.data.journal.JournalFood
+import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalInsulinPresetInput
 import tk.glucodata.data.journal.builtInJournalCurve
@@ -124,6 +127,19 @@ private data class JournalPresetDraft(
     val countsTowardIob: Boolean = true
 )
 
+private data class JournalFoodDraft(
+    val id: Long? = null,
+    val displayName: String = "",
+    val carbsText: String = "",
+    val proteinText: String = "",
+    val fatText: String = "",
+    val absorptionText: String = "90",
+    val accentColor: Int = DEFAULT_FOOD_COLOR,
+    val sortOrder: Int = Int.MAX_VALUE,
+    val isBuiltIn: Boolean = false,
+    val isArchived: Boolean = false
+)
+
 @Composable
 fun JournalSettingsScreen(
     navController: NavController,
@@ -132,10 +148,15 @@ fun JournalSettingsScreen(
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
     val allPresets by viewModel.journalInsulinPresets.collectAsState()
+    val allFoods by viewModel.journalFoods.collectAsState()
     val activePresets = remember(allPresets) { allPresets.filter { !it.isArchived } }
     val archivedPresets = remember(allPresets) { allPresets.filter { it.isArchived } }
+    val activeFoods = remember(allFoods) { allFoods.filter { !it.isArchived } }
+    val archivedFoods = remember(allFoods) { allFoods.filter { it.isArchived } }
     var editingPreset by remember { mutableStateOf<JournalInsulinPreset?>(null) }
     var creatingPreset by remember { mutableStateOf(false) }
+    var editingFood by remember { mutableStateOf<JournalFood?>(null) }
+    var creatingFood by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -209,6 +230,54 @@ fun JournalSettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = stringResource(R.string.journal_import_health_activity))
+                }
+            }
+
+            item(key = "food_label") {
+                SectionLabel(
+                    text = stringResource(R.string.journal_food_library),
+                    topPadding = 2.dp
+                )
+            }
+
+            if (activeFoods.isNotEmpty()) {
+                item(key = "food_group") {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        activeFoods.forEachIndexed { index, food ->
+                            JournalFoodRow(
+                                food = food,
+                                position = cardPosition(index, activeFoods.size),
+                                onClick = { editingFood = food }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item(key = "add_food_button") {
+                AddCustomAlertButton(
+                    text = stringResource(R.string.journal_add_food),
+                    onClick = { creatingFood = true }
+                )
+            }
+
+            if (archivedFoods.isNotEmpty()) {
+                item(key = "disabled_food_label") {
+                    SectionLabel(
+                        text = stringResource(R.string.journal_food_disabled_library),
+                        topPadding = 4.dp
+                    )
+                }
+                item(key = "disabled_food_group") {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        archivedFoods.forEachIndexed { index, food ->
+                            JournalFoodRow(
+                                food = food,
+                                position = cardPosition(index, archivedFoods.size),
+                                onClick = { editingFood = food }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -292,6 +361,37 @@ fun JournalSettingsScreen(
             }
         )
     }
+
+    if (creatingFood) {
+        JournalFoodSheet(
+            food = null,
+            onDismiss = { creatingFood = false },
+            onSave = {
+                viewModel.saveJournalFood(it)
+                creatingFood = false
+            },
+            onDelete = null
+        )
+    }
+
+    editingFood?.let { food ->
+        JournalFoodSheet(
+            food = food,
+            onDismiss = { editingFood = null },
+            onSave = {
+                viewModel.saveJournalFood(it)
+                editingFood = null
+            },
+            onDelete = if (food.isBuiltIn) {
+                null
+            } else {
+                {
+                    viewModel.deleteJournalFood(food.id)
+                    editingFood = null
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -371,6 +471,285 @@ private fun JournalPresetRow(
                     .height(42.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun JournalFoodRow(
+    food: JournalFood,
+    position: CardPosition,
+    onClick: () -> Unit
+) {
+    val isDisabled = food.isArchived
+    val tint = if (isDisabled) {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f)
+    } else {
+        Color(food.accentColor)
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        color = if (isDisabled) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = cardShape(position)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(if (isDisabled) 0.6f else 1f)
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(44.dp),
+                color = tint.copy(alpha = if (isDisabled) 0.10f else 0.18f),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Restaurant,
+                        contentDescription = null,
+                        tint = tint,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = food.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (isDisabled) {
+                        Text(
+                            text = stringResource(R.string.disabled_status),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Text(
+                    text = stringResource(
+                        R.string.journal_food_macro_summary,
+                        formatFoodNumber(food.carbsGrams),
+                        formatFoodNumber(food.proteinGrams ?: 0f),
+                        formatFoodNumber(food.fatGrams ?: 0f),
+                        food.absorptionMinutes
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun JournalFoodSheet(
+    food: JournalFood?,
+    onDismiss: () -> Unit,
+    onSave: (JournalFoodInput) -> Unit,
+    onDelete: (() -> Unit)?
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var draft by remember(food?.id) { mutableStateOf(buildFoodDraft(food)) }
+    var showColorDialog by rememberSaveable(food?.id) { mutableStateOf(false) }
+    val canSave = draft.displayName.trim().isNotBlank() &&
+        draft.carbsText.parseFoodFloatOrNull() != null &&
+        draft.absorptionText.toIntOrNull() != null
+
+    fun saveDraft() {
+        buildFoodInput(draft)?.let(onSave)
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Box(modifier = Modifier.size(width = 32.dp, height = 4.dp))
+            }
+        }
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .imePadding(),
+            contentPadding = PaddingValues(top = 4.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "header") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(if (food == null) R.string.journal_add_food else R.string.journal_edit_food),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (food != null) {
+                        FilledTonalButton(
+                            onClick = { draft = draft.copy(isArchived = !draft.isArchived) },
+                            modifier = Modifier.height(40.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (draft.isArchived) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.errorContainer
+                                },
+                                contentColor = if (draft.isArchived) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onErrorContainer
+                                }
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (draft.isArchived) Icons.Default.CheckCircle else Icons.Default.Block,
+                                contentDescription = null,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(modifier = Modifier.width(7.dp))
+                            Text(text = stringResource(if (draft.isArchived) R.string.enable else R.string.disable))
+                        }
+                    }
+                }
+            }
+
+            item(key = "name_color") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = draft.displayName,
+                        onValueChange = { draft = draft.copy(displayName = it) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .widthIn(min = 0.dp),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.name).trimTrailingLabel()) }
+                    )
+                    FilledTonalIconButton(
+                        onClick = { showColorDialog = true },
+                        modifier = Modifier.size(56.dp),
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        )
+                    ) {
+                        Surface(
+                            modifier = Modifier.size(22.dp),
+                            shape = CircleShape,
+                            color = Color(draft.accentColor)
+                        ) {}
+                    }
+                }
+            }
+
+            item(key = "macros") {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = draft.carbsText,
+                        onValueChange = { draft = draft.copy(carbsText = it) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.carbo).trimTrailingLabel()) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        suffix = { Text("g") }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = draft.proteinText,
+                            onValueChange = { draft = draft.copy(proteinText = it) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .widthIn(min = 0.dp),
+                            label = { Text(stringResource(R.string.journal_food_protein)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            suffix = { Text("g") }
+                        )
+                        OutlinedTextField(
+                            value = draft.fatText,
+                            onValueChange = { draft = draft.copy(fatText = it) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .widthIn(min = 0.dp),
+                            label = { Text(stringResource(R.string.journal_food_fat)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            suffix = { Text("g") }
+                        )
+                    }
+                    OutlinedTextField(
+                        value = draft.absorptionText,
+                        onValueChange = { updated -> draft = draft.copy(absorptionText = updated.filter(Char::isDigit)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.journal_food_absorption)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        suffix = { Text(stringResource(R.string.minutes)) }
+                    )
+                }
+            }
+
+            item(key = "actions") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { saveDraft() },
+                        enabled = canSave,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = stringResource(R.string.save))
+                    }
+                    onDelete?.let {
+                        OutlinedButton(
+                            onClick = it,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = stringResource(R.string.delete),
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showColorDialog) {
+        PresetColorDialog(
+            initialColor = draft.accentColor,
+            onDismiss = { showColorDialog = false },
+            onConfirm = {
+                draft = draft.copy(accentColor = it)
+                showColorDialog = false
+            }
+        )
     }
 }
 
@@ -1640,6 +2019,55 @@ private fun defaultBuiltInProfile(sortOrder: Int): JournalBuiltInCurveProfile? =
     else -> null
 }
 
+private fun buildFoodDraft(food: JournalFood?): JournalFoodDraft {
+    return if (food == null) {
+        JournalFoodDraft()
+    } else {
+        JournalFoodDraft(
+            id = food.id,
+            displayName = food.displayName,
+            carbsText = formatFoodNumber(food.carbsGrams),
+            proteinText = food.proteinGrams?.let(::formatFoodNumber).orEmpty(),
+            fatText = food.fatGrams?.let(::formatFoodNumber).orEmpty(),
+            absorptionText = food.absorptionMinutes.toString(),
+            accentColor = food.accentColor,
+            sortOrder = food.sortOrder,
+            isBuiltIn = food.isBuiltIn,
+            isArchived = food.isArchived
+        )
+    }
+}
+
+private fun buildFoodInput(draft: JournalFoodDraft): JournalFoodInput? {
+    val name = draft.displayName.trim().takeIf { it.isNotBlank() } ?: return null
+    val carbs = draft.carbsText.parseFoodFloatOrNull() ?: return null
+    val absorption = draft.absorptionText.toIntOrNull()?.coerceIn(15, 480) ?: return null
+    return JournalFoodInput(
+        id = draft.id,
+        displayName = name,
+        carbsGrams = carbs,
+        proteinGrams = draft.proteinText.parseFoodFloatOrNull(),
+        fatGrams = draft.fatText.parseFoodFloatOrNull(),
+        absorptionMinutes = absorption,
+        accentColor = draft.accentColor,
+        isBuiltIn = draft.isBuiltIn,
+        isArchived = draft.isArchived,
+        sortOrder = draft.sortOrder
+    )
+}
+
+private fun formatFoodNumber(value: Float): String {
+    return if (kotlin.math.abs(value - value.roundToInt()) < 0.001f) {
+        value.roundToInt().toString()
+    } else {
+        String.format(java.util.Locale.getDefault(), "%.1f", value).trimEnd('0').trimEnd('.', ',')
+    }
+}
+
+private fun String.parseFoodFloatOrNull(): Float? {
+    return trim().replace(',', '.').toFloatOrNull()?.coerceAtLeast(0f)
+}
+
 private fun formatColorHex(color: Int): String {
     return "#%08X".format(color)
 }
@@ -1655,6 +2083,7 @@ private fun parseColorHex(raw: String): Int? {
 }
 
 private val DEFAULT_PRESET_COLOR = 0xFF1565C0.toInt()
+private val DEFAULT_FOOD_COLOR = 0xFF5F7D4B.toInt()
 
 private fun String.trimTrailingLabel(): String {
     return trim().trimEnd(':').trim()

@@ -11,6 +11,7 @@ import org.json.JSONObject
 import tk.glucodata.BuildConfig
 import tk.glucodata.Natives
 import tk.glucodata.data.journal.JournalEntryEntity
+import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import java.io.File
 import java.io.OutputStreamWriter
@@ -20,7 +21,7 @@ import java.util.Locale
 object SettingsExporter {
     private const val TAG = "SettingsExporter"
     private const val SCHEMA = "tk.glucodata.settings-export"
-    private const val SCHEMA_VERSION = 2
+    private const val SCHEMA_VERSION = 3
 
     private val nativeSettingsFiles = listOf(
         "settings.dat",
@@ -33,14 +34,21 @@ object SettingsExporter {
         val preferenceValues: Int,
         val nativeFiles: Int,
         val journalEntries: Int = 0,
-        val journalInsulinPresets: Int = 0
+        val journalInsulinPresets: Int = 0,
+        val journalFoods: Int = 0
+    )
+
+    private data class JournalImportSummary(
+        val entries: Int = 0,
+        val insulinPresets: Int = 0,
+        val foods: Int = 0
     )
 
     suspend fun exportToJson(context: Context, uri: Uri): Result<Unit> {
         val appContext = context.applicationContext
         return withContext(Dispatchers.IO) {
             runCatching {
-                val payload = buildPayload(appContext)
+                val payload = buildExportPayload(appContext)
                 val outputStream = appContext.contentResolver.openOutputStream(uri)
                     ?: error("Could not open export destination")
                 OutputStreamWriter(outputStream, StandardCharsets.UTF_8).use { writer ->
@@ -53,6 +61,13 @@ object SettingsExporter {
                 Log.e(TAG, "Settings export failed", it)
             }
         }
+    }
+
+    suspend fun buildExportPayload(
+        context: Context,
+        includeJournalData: Boolean = true
+    ): JSONObject {
+        return buildPayload(context.applicationContext, includeJournalData)
     }
 
     suspend fun isSettingsExport(context: Context, uri: Uri): Boolean {
@@ -92,8 +107,9 @@ object SettingsExporter {
                     sharedPreferenceFiles = preferencesSummary.first,
                     preferenceValues = preferencesSummary.second,
                     nativeFiles = nativeFileCount,
-                    journalEntries = journalSummary.first,
-                    journalInsulinPresets = journalSummary.second
+                    journalEntries = journalSummary.entries,
+                    journalInsulinPresets = journalSummary.insulinPresets,
+                    journalFoods = journalSummary.foods
                 )
             }.onFailure {
                 Log.e(TAG, "Settings import failed", it)
@@ -101,7 +117,10 @@ object SettingsExporter {
         }
     }
 
-    private suspend fun buildPayload(context: Context): JSONObject {
+    private suspend fun buildPayload(
+        context: Context,
+        includeJournalData: Boolean = true
+    ): JSONObject {
         return JSONObject()
             .put("schema", SCHEMA)
             .put("schemaVersion", SCHEMA_VERSION)
@@ -110,8 +129,12 @@ object SettingsExporter {
             .put("app", buildAppInfo(context))
             .put("sharedPreferences", buildSharedPreferences(context))
             .put("nativeSettingsFiles", buildNativeSettingsFiles(context))
-            .put("journalData", buildJournalData(context))
             .put("nativeTransferSettings", buildNativeTransferSettings())
+            .also { payload ->
+                if (includeJournalData) {
+                    payload.put("journalData", buildJournalData(context))
+                }
+            }
     }
 
     private fun buildAppInfo(context: Context): JSONObject {
@@ -303,23 +326,41 @@ object SettingsExporter {
                     journalDao.getInsulinPresets().forEach { array.put(it.toJson()) }
                 }
             )
+            .put(
+                "foods",
+                JSONArray().also { array ->
+                    journalDao.getFoods().forEach { array.put(it.toJson()) }
+                }
+            )
     }
 
-    private suspend fun importJournalData(context: Context, journalData: JSONObject?): Pair<Int, Int> {
-        if (journalData == null) return 0 to 0
+    private suspend fun importJournalData(context: Context, journalData: JSONObject?): JournalImportSummary {
+        if (journalData == null) return JournalImportSummary()
         val entries = journalData.optJSONArray("entries").toJournalEntries()
         val insulinPresets = journalData.optJSONArray("insulinPresets").toInsulinPresets()
+        val hasFoods = journalData.has("foods")
+        val foods = journalData.optJSONArray("foods").toFoods()
         val journalDao = HistoryDatabase.getInstance(context).journalDao()
 
         journalDao.deleteAllEntries()
         journalDao.deleteAllInsulinPresets()
+        if (hasFoods) {
+            journalDao.deleteAllFoods()
+            if (foods.isNotEmpty()) {
+                journalDao.insertFoods(foods)
+            }
+        }
         if (insulinPresets.isNotEmpty()) {
             journalDao.insertInsulinPresets(insulinPresets)
         }
         if (entries.isNotEmpty()) {
             journalDao.upsertEntries(entries)
         }
-        return entries.size to insulinPresets.size
+        return JournalImportSummary(
+            entries = entries.size,
+            insulinPresets = insulinPresets.size,
+            foods = if (hasFoods) foods.size else 0
+        )
     }
 
     private fun JournalEntryEntity.toJson(): JSONObject {
@@ -335,6 +376,9 @@ object SettingsExporter {
             .putNullable("durationMinutes", durationMinutes)
             .putNullable("intensity", intensity)
             .putNullable("insulinPresetId", insulinPresetId)
+            .putNullable("foodId", foodId)
+            .putNullable("proteinGrams", proteinGrams)
+            .putNullable("fatGrams", fatGrams)
             .put("source", source)
             .putNullable("sourceRecordId", sourceRecordId)
             .put("createdAt", createdAt)
@@ -355,6 +399,22 @@ object SettingsExporter {
             .put("sortOrder", sortOrder)
     }
 
+    private fun JournalFoodEntity.toJson(): JSONObject {
+        return JSONObject()
+            .put("id", id)
+            .put("displayName", displayName)
+            .put("carbsGrams", carbsGrams)
+            .putNullable("proteinGrams", proteinGrams)
+            .putNullable("fatGrams", fatGrams)
+            .put("absorptionMinutes", absorptionMinutes)
+            .put("accentColor", accentColor)
+            .put("isBuiltIn", isBuiltIn)
+            .put("isArchived", isArchived)
+            .put("sortOrder", sortOrder)
+            .put("createdAt", createdAt)
+            .put("updatedAt", updatedAt)
+    }
+
     private fun JSONArray?.toJournalEntries(): List<JournalEntryEntity> {
         if (this == null) return emptyList()
         return buildList {
@@ -373,10 +433,38 @@ object SettingsExporter {
                         durationMinutes = item.optNullableInt("durationMinutes"),
                         intensity = item.optNullableString("intensity"),
                         insulinPresetId = item.optNullableLong("insulinPresetId"),
+                        foodId = item.optNullableLong("foodId"),
+                        proteinGrams = item.optNullableFloat("proteinGrams"),
+                        fatGrams = item.optNullableFloat("fatGrams"),
                         source = item.optString("source", "import"),
                         sourceRecordId = item.optNullableString("sourceRecordId"),
                         createdAt = item.optLong("createdAt", item.getLong("timestamp")),
                         updatedAt = item.optLong("updatedAt", item.getLong("timestamp"))
+                    )
+                )
+            }
+        }
+    }
+
+    private fun JSONArray?.toFoods(): List<JournalFoodEntity> {
+        if (this == null) return emptyList()
+        return buildList {
+            for (index in 0 until length()) {
+                val item = optJSONObject(index) ?: continue
+                add(
+                    JournalFoodEntity(
+                        id = item.optLong("id", 0L),
+                        displayName = item.getString("displayName"),
+                        carbsGrams = item.optDouble("carbsGrams", 0.0).toFloat(),
+                        proteinGrams = item.optNullableFloat("proteinGrams"),
+                        fatGrams = item.optNullableFloat("fatGrams"),
+                        absorptionMinutes = item.optInt("absorptionMinutes", 90),
+                        accentColor = item.optInt("accentColor", 0xFF5F7D4B.toInt()),
+                        isBuiltIn = item.optBoolean("isBuiltIn", false),
+                        isArchived = item.optBoolean("isArchived", false),
+                        sortOrder = item.optInt("sortOrder", index),
+                        createdAt = item.optLong("createdAt", System.currentTimeMillis()),
+                        updatedAt = item.optLong("updatedAt", System.currentTimeMillis())
                     )
                 )
             }

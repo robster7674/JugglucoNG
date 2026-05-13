@@ -534,28 +534,6 @@ fun ExpressiveSettingsScreen(
         item(key = "data_group") {
             // Theme: Secondary (Files match notifications/system)
             val dataColor = MaterialTheme.colorScheme.secondary
-            val settingsExportLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.CreateDocument("application/json"),
-                onResult = { uri ->
-                    if (uri != null) {
-                        scope.launch {
-                            val result = tk.glucodata.data.SettingsExporter.exportToJson(context, uri)
-                            withContext(Dispatchers.Main) {
-                                val message = if (result.isSuccess) {
-                                    context.getString(R.string.export_successful)
-                                } else {
-                                    context.getString(
-                                        R.string.export_failed_with_error,
-                                        result.exceptionOrNull()?.localizedMessage
-                                            ?: context.getString(R.string.unknown_error)
-                                    )
-                                }
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                            }
-                        }
-                    }
-                }
-            )
             val importLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.OpenDocument(),
                 onResult = { uri ->
@@ -585,24 +563,12 @@ fun ExpressiveSettingsScreen(
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 SettingsItem(
-                    title = stringResource(R.string.export_data),
-                    subtitle = stringResource(R.string.export_data_desc),
+                    title = stringResource(R.string.export_data_settings),
+                    subtitle = stringResource(R.string.export_data_settings_desc),
                     icon = androidx.compose.material.icons.Icons.Default.CloudUpload,
                     iconTint = dataColor,
                     position = CardPosition.TOP,
                     onClick = { showExportDialog = true }
-                )
-                SettingsItem(
-                    title = stringResource(R.string.export_settings),
-                    subtitle = stringResource(R.string.export_settings_desc),
-                    icon = Icons.Default.Settings,
-                    iconTint = dataColor,
-                    position = CardPosition.MIDDLE,
-                    onClick = {
-                        val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                            .format(System.currentTimeMillis())
-                        settingsExportLauncher.launch("Juggluco_Settings_$date.json")
-                    }
                 )
 
                 SettingsItem(
@@ -728,7 +694,7 @@ fun ExpressiveSettingsScreen(
     
     if (showExportDialog) {
         val sheetState = rememberModalBottomSheetState()
-        HistoryExportSheet(
+        ExportDataSettingsSheet(
             onDismiss = { showExportDialog = false },
             sheetState = sheetState
         )

@@ -8,6 +8,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import tk.glucodata.data.journal.JournalDao
 import tk.glucodata.data.journal.JournalEntryEntity
+import tk.glucodata.data.journal.JournalFoodEntity
 import tk.glucodata.data.journal.JournalInsulinPresetEntity
 import tk.glucodata.data.journal.JournalPendingDeleteEntity
 
@@ -26,16 +27,18 @@ import tk.glucodata.data.journal.JournalPendingDeleteEntity
  *   v8 — per-reading delete tombstones to keep manual Room deletes durable
  *   v9 — per-sensor timestamp index for bounded dashboard/stats history queries
  *   v10 — Nightscout sync columns on journal entries + tombstone table for journal deletes
+ *   v11 — journal food library and macro metadata for carb entries
  */
 @Database(
     entities = [
         HistoryReading::class,
         DeletedHistoryReading::class,
         JournalEntryEntity::class,
+        JournalFoodEntity::class,
         JournalInsulinPresetEntity::class,
         JournalPendingDeleteEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class HistoryDatabase : RoomDatabase() {
@@ -193,6 +196,35 @@ abstract class HistoryDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE journal_entries ADD COLUMN foodId INTEGER")
+                db.execSQL("ALTER TABLE journal_entries ADD COLUMN proteinGrams REAL")
+                db.execSQL("ALTER TABLE journal_entries ADD COLUMN fatGrams REAL")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_journal_entries_foodId ON journal_entries (foodId)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS journal_foods (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        displayName TEXT NOT NULL,
+                        carbsGrams REAL NOT NULL,
+                        proteinGrams REAL,
+                        fatGrams REAL,
+                        absorptionMinutes INTEGER NOT NULL,
+                        accentColor INTEGER NOT NULL,
+                        isBuiltIn INTEGER NOT NULL,
+                        isArchived INTEGER NOT NULL,
+                        sortOrder INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_journal_foods_isArchived_sortOrder ON journal_foods (isArchived, sortOrder)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_journal_foods_displayName ON journal_foods (displayName)")
+            }
+        }
+
         fun getInstance(context: Context): HistoryDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -208,7 +240,8 @@ abstract class HistoryDatabase : RoomDatabase() {
                     MIGRATION_6_7,
                     MIGRATION_7_8,
                     MIGRATION_8_9,
-                    MIGRATION_9_10
+                    MIGRATION_9_10,
+                    MIGRATION_10_11
                 )
                 .fallbackToDestructiveMigration()  // Fallback if migration chain is broken
                 .build().also { INSTANCE = it }

@@ -24,6 +24,8 @@ import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.HistorySync
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryInput
+import tk.glucodata.data.journal.JournalFood
+import tk.glucodata.data.journal.JournalFoodInput
 import tk.glucodata.data.journal.JournalInsulinPreset
 import tk.glucodata.data.journal.JournalInsulinPresetInput
 import tk.glucodata.ui.util.inDisplayUnit
@@ -213,6 +215,9 @@ class DashboardViewModel(
     private val _journalInsulinPresets = MutableStateFlow<List<JournalInsulinPreset>>(emptyList())
     val journalInsulinPresets = _journalInsulinPresets.asStateFlow()
 
+    private val _journalFoods = MutableStateFlow<List<JournalFood>>(emptyList())
+    val journalFoods = _journalFoods.asStateFlow()
+
     private val _lowAlarmSoundMode = MutableStateFlow(0)
     val lowAlarmSoundMode = _lowAlarmSoundMode.asStateFlow()
 
@@ -229,6 +234,7 @@ class DashboardViewModel(
     private var uiRefreshJob: Job? = null
     private var journalEntriesJob: Job? = null
     private var journalPresetsJob: Job? = null
+    private var journalFoodsJob: Job? = null
     private var activeHistoryMode: CollectionMode? = null
     private var activeHistoryStartTimeMs: Long? = null
 
@@ -242,6 +248,7 @@ class DashboardViewModel(
 
     private fun observeJournalState() {
         ensureJournalPresetsObserved()
+        ensureJournalFoodsObserved()
         if (_journalEnabled.value) {
             ensureJournalEntriesObserved()
         }
@@ -265,6 +272,14 @@ class DashboardViewModel(
         journalPresetsJob = viewModelScope.launch {
             journalRepository.ensureDefaultInsulinPresets()
             journalRepository.observeInsulinPresets().collect { _journalInsulinPresets.value = it }
+        }
+    }
+
+    private fun ensureJournalFoodsObserved() {
+        if (journalFoodsJob?.isActive == true) return
+        journalFoodsJob = viewModelScope.launch {
+            journalRepository.ensureDefaultFoods()
+            journalRepository.observeFoods().collect { _journalFoods.value = it }
         }
     }
 
@@ -967,6 +982,18 @@ class DashboardViewModel(
     fun deleteJournalInsulinPreset(presetId: Long) {
         viewModelScope.launch {
             journalRepository.deleteInsulinPreset(presetId)
+        }
+    }
+
+    fun saveJournalFood(input: JournalFoodInput) {
+        viewModelScope.launch {
+            journalRepository.upsertFood(input)
+        }
+    }
+
+    fun deleteJournalFood(foodId: Long) {
+        viewModelScope.launch {
+            journalRepository.deleteFood(foodId)
         }
     }
 

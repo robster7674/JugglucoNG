@@ -12,6 +12,7 @@ class JournalRepository {
     private companion object {
         const val PREFS_NAME = "tk.glucodata_preferences"
         const val DEFAULT_PRESETS_SEEDED_KEY = "journal_default_presets_seeded_v4"
+        const val DEFAULT_FOODS_SEEDED_KEY = "journal_default_foods_seeded_v1"
     }
 
     private val database = HistoryDatabase.getInstance(Applic.app)
@@ -24,6 +25,10 @@ class JournalRepository {
 
     fun observeInsulinPresets(): Flow<List<JournalInsulinPreset>> {
         return dao.observeInsulinPresets().map { presets -> presets.map(JournalInsulinPresetEntity::toModel) }
+    }
+
+    fun observeFoods(): Flow<List<JournalFood>> {
+        return dao.observeFoods().map { foods -> foods.map(JournalFoodEntity::toModel) }
     }
 
     suspend fun ensureDefaultInsulinPresets() {
@@ -58,6 +63,9 @@ class JournalRepository {
             sourceRecordId = input.sourceRecordId?.takeIf { it.isNotBlank() },
             createdAt = existing?.createdAt ?: now,
             updatedAt = now,
+            foodId = input.foodId,
+            proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
+            fatGrams = input.fatGrams?.coerceAtLeast(0f),
             nsUploadedAt = existing?.nsUploadedAt,
             nsRemoteId = existing?.nsRemoteId
         )
@@ -102,6 +110,42 @@ class JournalRepository {
 
     suspend fun deleteInsulinPreset(presetId: Long) {
         dao.deleteInsulinPresetById(presetId)
+    }
+
+    suspend fun ensureDefaultFoods() {
+        val seeded = prefs.getBoolean(DEFAULT_FOODS_SEEDED_KEY, false)
+        database.withTransaction {
+            val existing = dao.getFoods()
+            if (seeded && existing.isNotEmpty()) return@withTransaction
+            if (existing.isEmpty()) {
+                dao.insertFoods(defaultFoods())
+            }
+            prefs.edit().putBoolean(DEFAULT_FOODS_SEEDED_KEY, true).apply()
+        }
+    }
+
+    suspend fun upsertFood(input: JournalFoodInput): Long {
+        val existing = input.id?.let { dao.getFoodById(it) }
+        val now = System.currentTimeMillis()
+        val entity = JournalFoodEntity(
+            id = existing?.id ?: (input.id ?: 0L),
+            displayName = input.displayName.trim(),
+            carbsGrams = input.carbsGrams.coerceAtLeast(0f),
+            proteinGrams = input.proteinGrams?.coerceAtLeast(0f),
+            fatGrams = input.fatGrams?.coerceAtLeast(0f),
+            absorptionMinutes = input.absorptionMinutes.coerceIn(15, 480),
+            accentColor = input.accentColor,
+            isBuiltIn = existing?.isBuiltIn ?: input.isBuiltIn,
+            isArchived = input.isArchived,
+            sortOrder = input.sortOrder,
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now
+        )
+        return dao.upsertFood(entity)
+    }
+
+    suspend fun deleteFood(foodId: Long) {
+        dao.deleteFoodById(foodId)
     }
 
     private fun defaultPresets(): List<JournalInsulinPresetEntity> {
@@ -267,6 +311,65 @@ class JournalRepository {
         } ?: return null
         return builtInsBySortOrder[legacySortOrder]
     }
+
+    private fun defaultFoods(): List<JournalFoodEntity> {
+        val app = Applic.app
+        val now = System.currentTimeMillis()
+        return listOf(
+            JournalFoodEntity(
+                displayName = app.getString(R.string.journal_food_fast_carbs),
+                carbsGrams = 15f,
+                proteinGrams = 0f,
+                fatGrams = 0f,
+                absorptionMinutes = 45,
+                accentColor = 0xFF4F7C58.toInt(),
+                isBuiltIn = true,
+                isArchived = false,
+                sortOrder = 0,
+                createdAt = now,
+                updatedAt = now
+            ),
+            JournalFoodEntity(
+                displayName = app.getString(R.string.journal_food_balanced_meal),
+                carbsGrams = 45f,
+                proteinGrams = 20f,
+                fatGrams = 15f,
+                absorptionMinutes = 120,
+                accentColor = 0xFF5F7D4B.toInt(),
+                isBuiltIn = true,
+                isArchived = false,
+                sortOrder = 1,
+                createdAt = now,
+                updatedAt = now
+            ),
+            JournalFoodEntity(
+                displayName = app.getString(R.string.journal_food_slow_meal),
+                carbsGrams = 60f,
+                proteinGrams = 25f,
+                fatGrams = 25f,
+                absorptionMinutes = 240,
+                accentColor = 0xFF8A7347.toInt(),
+                isBuiltIn = true,
+                isArchived = false,
+                sortOrder = 2,
+                createdAt = now,
+                updatedAt = now
+            ),
+            JournalFoodEntity(
+                displayName = app.getString(R.string.journal_food_protein_snack),
+                carbsGrams = 10f,
+                proteinGrams = 25f,
+                fatGrams = 8f,
+                absorptionMinutes = 180,
+                accentColor = 0xFF6F6650.toInt(),
+                isBuiltIn = true,
+                isArchived = false,
+                sortOrder = 3,
+                createdAt = now,
+                updatedAt = now
+            )
+        )
+    }
 }
 
 private fun JournalEntryEntity.toModel(): JournalEntry {
@@ -282,6 +385,9 @@ private fun JournalEntryEntity.toModel(): JournalEntry {
         durationMinutes = durationMinutes,
         intensity = JournalIntensity.fromStorage(intensity),
         insulinPresetId = insulinPresetId,
+        foodId = foodId,
+        proteinGrams = proteinGrams,
+        fatGrams = fatGrams,
         source = JournalEntrySource.fromStorage(source),
         sourceRecordId = sourceRecordId,
         createdAt = createdAt,
@@ -300,6 +406,21 @@ private fun JournalInsulinPresetEntity.toModel(): JournalInsulinPreset {
         isBuiltIn = isBuiltIn,
         isArchived = isArchived,
         countsTowardIob = countsTowardIob,
+        sortOrder = sortOrder
+    )
+}
+
+private fun JournalFoodEntity.toModel(): JournalFood {
+    return JournalFood(
+        id = id,
+        displayName = displayName,
+        carbsGrams = carbsGrams,
+        proteinGrams = proteinGrams,
+        fatGrams = fatGrams,
+        absorptionMinutes = absorptionMinutes,
+        accentColor = accentColor,
+        isBuiltIn = isBuiltIn,
+        isArchived = isArchived,
         sortOrder = sortOrder
     )
 }

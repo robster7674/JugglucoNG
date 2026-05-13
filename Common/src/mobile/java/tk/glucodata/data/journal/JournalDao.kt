@@ -60,6 +60,30 @@ interface JournalDao {
     @Query("DELETE FROM journal_insulin_presets WHERE id = :id")
     suspend fun deleteInsulinPresetById(id: Long)
 
+    @Query("SELECT * FROM journal_foods ORDER BY isArchived ASC, sortOrder ASC, displayName COLLATE NOCASE ASC")
+    fun observeFoods(): Flow<List<JournalFoodEntity>>
+
+    @Query("SELECT * FROM journal_foods WHERE id = :id LIMIT 1")
+    suspend fun getFoodById(id: Long): JournalFoodEntity?
+
+    @Query("SELECT * FROM journal_foods")
+    suspend fun getFoods(): List<JournalFoodEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFood(food: JournalFoodEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFoods(foods: List<JournalFoodEntity>)
+
+    @Query("DELETE FROM journal_foods")
+    suspend fun deleteAllFoods()
+
+    @Query("SELECT COUNT(*) FROM journal_foods")
+    suspend fun countFoods(): Int
+
+    @Query("DELETE FROM journal_foods WHERE id = :id")
+    suspend fun deleteFoodById(id: Long)
+
     @Query(
         """
         SELECT * FROM journal_entries

@@ -10,6 +10,7 @@ import androidx.room.PrimaryKey
         Index(value = ["timestamp"]),
         Index(value = ["entryType"]),
         Index(value = ["insulinPresetId"]),
+        Index(value = ["foodId"]),
         Index(value = ["sourceRecordId"], unique = true)
     ]
 )
@@ -26,6 +27,9 @@ data class JournalEntryEntity(
     val durationMinutes: Int?,
     val intensity: String?,
     val insulinPresetId: Long?,
+    val foodId: Long? = null,
+    val proteinGrams: Float? = null,
+    val fatGrams: Float? = null,
     val source: String,
     val sourceRecordId: String?,
     val createdAt: Long,

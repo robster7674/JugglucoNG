@@ -52,6 +52,9 @@ data class JournalEntry(
     val durationMinutes: Int?,
     val intensity: JournalIntensity?,
     val insulinPresetId: Long?,
+    val foodId: Long?,
+    val proteinGrams: Float?,
+    val fatGrams: Float?,
     val source: JournalEntrySource,
     val sourceRecordId: String?,
     val createdAt: Long,
@@ -70,8 +73,37 @@ data class JournalEntryInput(
     val durationMinutes: Int? = null,
     val intensity: JournalIntensity? = null,
     val insulinPresetId: Long? = null,
+    val foodId: Long? = null,
+    val proteinGrams: Float? = null,
+    val fatGrams: Float? = null,
     val source: JournalEntrySource = JournalEntrySource.MANUAL,
     val sourceRecordId: String? = null
+)
+
+data class JournalFood(
+    val id: Long,
+    val displayName: String,
+    val carbsGrams: Float,
+    val proteinGrams: Float?,
+    val fatGrams: Float?,
+    val absorptionMinutes: Int,
+    val accentColor: Int,
+    val isBuiltIn: Boolean,
+    val isArchived: Boolean,
+    val sortOrder: Int
+)
+
+data class JournalFoodInput(
+    val id: Long? = null,
+    val displayName: String,
+    val carbsGrams: Float,
+    val proteinGrams: Float? = null,
+    val fatGrams: Float? = null,
+    val absorptionMinutes: Int,
+    val accentColor: Int,
+    val isBuiltIn: Boolean = false,
+    val isArchived: Boolean = false,
+    val sortOrder: Int = 0
 )
 
 data class JournalCurvePoint(
