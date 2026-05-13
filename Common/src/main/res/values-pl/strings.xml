@@ -559,7 +559,9 @@
     <string name="graph_smoothing_7_minutes">7 minut</string>
     <string name="data_smoothing_window_title">Okno wygładzania</string>
     <string name="data_smoothing_graph_only_title">Wygładzaj tylko wykres</string>
-    <string name="data_smoothing_graph_only_desc">Pozostawia bieżącą glukozę, widżety, alerty i transmisje bez wygładzania</string>
+    <string name="data_smoothing_graph_only_desc">Pozostawia bieżącą glukozę, widżety i alerty bez wygładzania; wyjścia wymiany danych używają ustawienia poniżej</string>
+    <string name="data_smoothing_exchange_only_title">Wygładzaj tylko wyjścia wymiany</string>
+    <string name="data_smoothing_exchange_only_desc">Stosuje wygładzanie i filtrowanie przedziałów tylko do transmisji oraz ładunków API wychodzącego; wykres, bieżąca glukoza, widżety i alerty pozostają bez zmian</string>
     <string name="data_smoothing_collapse_title">Scalaj w przedziały</string>
     <string name="data_smoothing_collapse_desc">Zachowuje jeden wygładzony punkt na przedział i odfiltrowuje punkty pomiędzy</string>
     <string name="data_smoothing_collapse_desc_match">Zachowuje jeden wygładzony punkt co %1$d minut</string>

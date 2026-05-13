@@ -537,11 +537,11 @@ public class NotificationChartDrawer {
         long duration = durationMs > 0L ? durationMs : DEFAULT_CHART_DURATION_MS;
         long startTime = now - duration;
 
-        int smoothingMinutes = DataSmoothing.getMinutes(context);
+        int smoothingMinutes = DataSmoothing.graphSmoothingMinutes(context);
         List<GlucosePoint> renderSource = DataSmoothing.smoothNativePoints(
                 data,
                 smoothingMinutes,
-                DataSmoothing.collapseChunks(context)
+                smoothingMinutes > 0 && DataSmoothing.collapseChunks(context)
         );
 
         // Filter data to visible range

@@ -562,7 +562,9 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="graph_smoothing_7_minutes">7 minuten</string>
     <string name="data_smoothing_window_title">Afvlakvenster</string>
     <string name="data_smoothing_graph_only_title">Alleen grafiek afvlakken</string>
-    <string name="data_smoothing_graph_only_desc">Houd huidige glucose, widgets, waarschuwingen en broadcasts onafgevlakt</string>
+    <string name="data_smoothing_graph_only_desc">Houd huidige glucose, widgets en waarschuwingen onafgevlakt; gegevensuitvoer volgt de instelling hieronder</string>
+    <string name="data_smoothing_exchange_only_title">Alleen gegevensuitvoer afvlakken</string>
+    <string name="data_smoothing_exchange_only_desc">Past afvlakking en intervalfiltering alleen toe op broadcasts en uitgaande API-payloads; grafiek, huidige glucose, widgets en waarschuwingen blijven ongewijzigd</string>
     <string name="data_smoothing_collapse_title">Samenvoegen in intervallen</string>
     <string name="data_smoothing_collapse_desc">Bewaar één afgevlakt punt per interval en filter de punten ertussen weg</string>
     <string name="data_smoothing_collapse_desc_match">Behoudt elke %1$d minuten één afgevlakt punt</string>

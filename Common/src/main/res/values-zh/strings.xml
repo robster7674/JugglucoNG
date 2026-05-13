@@ -491,7 +491,9 @@
     <string name="graph_smoothing_7_minutes">7 分钟</string>
     <string name="data_smoothing_window_title">平滑窗口</string>
     <string name="data_smoothing_graph_only_title">仅平滑图表</string>
-    <string name="data_smoothing_graph_only_desc">保持当前葡萄糖、组件、提醒和广播不做平滑</string>
+    <string name="data_smoothing_graph_only_desc">保持当前葡萄糖、组件和提醒不做平滑；交换输出遵循下方设置</string>
+    <string name="data_smoothing_exchange_only_title">仅平滑交换输出</string>
+    <string name="data_smoothing_exchange_only_desc">仅对广播和出站 API 负载应用平滑与区间过滤；图表、当前葡萄糖、组件和提醒保持不变</string>
     <string name="data_smoothing_collapse_title">按区间折叠</string>
     <string name="data_smoothing_collapse_desc">每个区间只保留一个平滑点，并过滤中间点</string>
     <string name="data_smoothing_collapse_desc_match">每 %1$d 分钟保留一个平滑点</string>

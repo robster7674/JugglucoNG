@@ -431,7 +431,9 @@
     <string name="graph_smoothing_7_minutes">7 minutes</string>
     <string name="data_smoothing_window_title">Fenêtre de lissage</string>
     <string name="data_smoothing_graph_only_title">Lisser uniquement le graphique</string>
-    <string name="data_smoothing_graph_only_desc">Laisse la glycémie actuelle, les widgets, les alertes et les diffusions sans lissage</string>
+    <string name="data_smoothing_graph_only_desc">Laisse la glycémie actuelle, les widgets et les alertes sans lissage; les sorties d’échange suivent le réglage ci-dessous</string>
+    <string name="data_smoothing_exchange_only_title">Lisser seulement les sorties d’échange</string>
+    <string name="data_smoothing_exchange_only_desc">Applique le lissage et le filtrage en intervalles seulement aux diffusions et aux charges utiles de l’API sortante; le graphique, la glycémie actuelle, les widgets et les alertes restent inchangés</string>
     <string name="data_smoothing_collapse_title">Regrouper en intervalles</string>
     <string name="data_smoothing_collapse_desc">Garde un point lissé par intervalle et filtre les points intermédiaires</string>
     <string name="data_smoothing_collapse_desc_match">Conserve un point lissé toutes les %1$d minutes</string>

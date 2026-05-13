@@ -114,6 +114,8 @@ private fun HistoryRoute(
     val targetHigh by dashboardViewModel.targetHigh.collectAsStateWithLifecycle()
     val chartSmoothingMinutes by dashboardViewModel.chartSmoothingMinutes.collectAsStateWithLifecycle()
     val dataSmoothingCollapseChunks by dashboardViewModel.dataSmoothingCollapseChunks.collectAsStateWithLifecycle()
+    val dataSmoothingExchangeOnly by dashboardViewModel.dataSmoothingExchangeOnly.collectAsStateWithLifecycle()
+    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
     val previewWindowMode by dashboardViewModel.previewWindowMode.collectAsStateWithLifecycle()
     val journalEnabled by dashboardViewModel.journalEnabled.collectAsStateWithLifecycle()
     val journalDoseCalculatorEnabled by dashboardViewModel.journalDoseCalculatorEnabled.collectAsStateWithLifecycle()
@@ -140,7 +142,7 @@ private fun HistoryRoute(
         graphHigh = graphHigh,
         targetLow = targetLow,
         targetHigh = targetHigh,
-        graphSmoothingMinutes = chartSmoothingMinutes,
+        graphSmoothingMinutes = visualSmoothingMinutes,
         collapseSmoothedData = dataSmoothingCollapseChunks,
         previewWindowMode = previewWindowMode,
         calibrations = calibrations,

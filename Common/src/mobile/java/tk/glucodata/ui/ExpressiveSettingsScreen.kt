@@ -107,6 +107,7 @@ fun ExpressiveSettingsScreen(
     val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
     val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
     val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
+    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
     val previewWindowMode by viewModel.previewWindowMode.collectAsState()
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val journalInsulinPresets by viewModel.journalInsulinPresets.collectAsState()
@@ -181,7 +182,9 @@ fun ExpressiveSettingsScreen(
         val collapseIntervalMinutes = DataSmoothing.collapseIntervalMinutes(chartSmoothingMinutes)
         buildList {
             add(stringResource(R.string.minutes_short_format, chartSmoothingMinutes))
-            if (dataSmoothingGraphOnly) {
+            if (dataSmoothingExchangeOnly) {
+                add(stringResource(R.string.data_smoothing_exchange_only_title))
+            } else if (dataSmoothingGraphOnly) {
                 add(stringResource(R.string.data_smoothing_graph_only_title))
             }
             if (dataSmoothingCollapseChunks) {

@@ -384,7 +384,9 @@
     <string name="graph_smoothing_7_minutes">7 minutos</string>
     <string name="data_smoothing_window_title">Janela de suavização</string>
     <string name="data_smoothing_graph_only_title">Suavizar só o gráfico</string>
-    <string name="data_smoothing_graph_only_desc">Mantém glicose atual, widgets, alertas e transmissões sem suavização</string>
+    <string name="data_smoothing_graph_only_desc">Mantém glicose atual, widgets e alertas sem suavização; as saídas de troca seguem a opção abaixo</string>
+    <string name="data_smoothing_exchange_only_title">Suavizar só saídas de troca</string>
+    <string name="data_smoothing_exchange_only_desc">Aplica suavização e filtragem por intervalos só às transmissões e aos payloads da API de saída; gráfico, glicose atual, widgets e alertas ficam inalterados</string>
     <string name="data_smoothing_collapse_title">Agrupar em intervalos</string>
     <string name="data_smoothing_collapse_desc">Mantém um ponto suavizado por intervalo e filtra os pontos intermédios</string>
     <string name="data_smoothing_collapse_desc_match">Mantém um ponto suavizado a cada %1$d minutos</string>

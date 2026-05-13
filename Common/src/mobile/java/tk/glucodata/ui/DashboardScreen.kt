@@ -296,6 +296,8 @@ fun DashboardScreen(
     val chartSmoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
     val dataSmoothingGraphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
     val dataSmoothingCollapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
+    val dataSmoothingExchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
+    val visualSmoothingMinutes = if (dataSmoothingExchangeOnly) 0 else chartSmoothingMinutes
     val previewWindowMode by viewModel.previewWindowMode.collectAsState()
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
@@ -383,13 +385,13 @@ fun DashboardScreen(
     }
     val consumerHistory = remember(
         glucoseHistory,
-        chartSmoothingMinutes,
+        visualSmoothingMinutes,
         dataSmoothingGraphOnly,
         dataSmoothingCollapseChunks
     ) {
         buildSmoothedConsumerHistory(
             points = glucoseHistory,
-            smoothingMinutes = chartSmoothingMinutes,
+            smoothingMinutes = visualSmoothingMinutes,
             smoothOnlyGraph = dataSmoothingGraphOnly,
             collapseChunks = dataSmoothingCollapseChunks
         )
@@ -1167,7 +1169,7 @@ fun DashboardScreen(
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
                                     predictionSeries = predictionSeries,
-                                    graphSmoothingMinutes = chartSmoothingMinutes,
+                                    graphSmoothingMinutes = visualSmoothingMinutes,
                                     collapseSmoothedData = dataSmoothingCollapseChunks,
                                     previewWindowMode = previewWindowMode,
                                     graphLow = graphLow,
@@ -1322,7 +1324,7 @@ fun DashboardScreen(
                                     journalMarkers = journalChartMarkers,
                                     activeInsulinSummary = activeInsulinSummary,
                                     predictionSeries = predictionSeries,
-                                    graphSmoothingMinutes = chartSmoothingMinutes,
+                                    graphSmoothingMinutes = visualSmoothingMinutes,
                                     collapseSmoothedData = dataSmoothingCollapseChunks,
                                     previewWindowMode = previewWindowMode,
                                     graphLow = graphLow,

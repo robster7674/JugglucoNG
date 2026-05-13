@@ -496,7 +496,9 @@
     <string name="graph_smoothing_7_minutes">7 хвилин</string>
     <string name="data_smoothing_window_title">Вікно згладжування</string>
     <string name="data_smoothing_graph_only_title">Згладжувати лише графік</string>
-    <string name="data_smoothing_graph_only_desc">Залишає поточну глюкозу, віджети, сповіщення та трансляції без згладжування</string>
+    <string name="data_smoothing_graph_only_desc">Залишає поточну глюкозу, віджети й сповіщення без згладжування; виходи обміну даними керуються налаштуванням нижче</string>
+    <string name="data_smoothing_exchange_only_title">Згладжувати лише виходи обміну</string>
+    <string name="data_smoothing_exchange_only_desc">Застосовує згладжування й фільтр інтервалів лише до трансляцій та вихідних API-даних; графік, поточна глюкоза, віджети й сповіщення залишаються без змін</string>
     <string name="data_smoothing_collapse_title">Стискати в інтервали</string>
     <string name="data_smoothing_collapse_desc">Залишає одну згладжену точку на інтервал і відфільтровує точки між ними</string>
     <string name="data_smoothing_collapse_desc_match">Залишає одну згладжену точку кожні %1$d хвилин</string>

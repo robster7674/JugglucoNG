@@ -536,7 +536,9 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="graph_smoothing_7_minutes">7 dakika</string>
     <string name="data_smoothing_window_title">Yumuşatma aralığı</string>
     <string name="data_smoothing_graph_only_title">Yalnızca grafiği yumuşat</string>
-    <string name="data_smoothing_graph_only_desc">Geçerli glikozu, widgetleri, uyarıları ve yayınları yumuşatmadan bırakır</string>
+    <string name="data_smoothing_graph_only_desc">Geçerli glikozu, widgetleri ve uyarıları yumuşatmadan bırakır; veri değişimi çıkışları aşağıdaki ayarı izler</string>
+    <string name="data_smoothing_exchange_only_title">Yalnızca veri çıkışlarını yumuşat</string>
+    <string name="data_smoothing_exchange_only_desc">Yumuşatma ve aralık filtresini yalnızca yayınlara ve giden API yüklerine uygular; grafik, geçerli glikoz, widgetler ve uyarılar değişmeden kalır</string>
     <string name="data_smoothing_collapse_title">Aralıklara daralt</string>
     <string name="data_smoothing_collapse_desc">Her aralık için tek bir yumuşatılmış nokta tutar ve aradaki noktaları filtreler</string>
     <string name="data_smoothing_collapse_desc_match">Her %1$d dakikada bir yumuşatılmış nokta tutar</string>

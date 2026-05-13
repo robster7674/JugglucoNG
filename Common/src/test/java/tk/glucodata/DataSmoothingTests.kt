@@ -1,6 +1,8 @@
 package tk.glucodata
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DataSmoothingTests {
@@ -37,5 +39,51 @@ class DataSmoothingTests {
         )
 
         assertEquals(listOf(7L * 60_000L), collapsed.map { it.timestamp })
+    }
+
+    @Test
+    fun shouldSmoothExchangeOutputsIsExplicitOnly() {
+        assertFalse(
+            DataSmoothing.shouldSmoothExchangeOutputs(
+                smoothingMinutes = 5,
+                exchangeOutputsOnly = false
+            )
+        )
+
+        assertTrue(
+            DataSmoothing.shouldSmoothExchangeOutputs(
+                smoothingMinutes = 5,
+                exchangeOutputsOnly = true
+            )
+        )
+    }
+
+    @Test
+    fun shouldSmoothExchangeOutputsRequiresEnabledSmoothingWindow() {
+        assertFalse(
+            DataSmoothing.shouldSmoothExchangeOutputs(
+                smoothingMinutes = 0,
+                exchangeOutputsOnly = true
+            )
+        )
+    }
+
+    @Test
+    fun shouldCollapseExchangeOutputsRequiresEffectiveExchangeSmoothing() {
+        assertFalse(
+            DataSmoothing.shouldCollapseExchangeOutputs(
+                smoothingMinutes = 5,
+                exchangeOutputsOnly = false,
+                collapseChunks = true
+            )
+        )
+
+        assertTrue(
+            DataSmoothing.shouldCollapseExchangeOutputs(
+                smoothingMinutes = 5,
+                exchangeOutputsOnly = true,
+                collapseChunks = true
+            )
+        )
     }
 }

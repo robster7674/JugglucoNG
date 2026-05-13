@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material3.Card
@@ -60,6 +61,7 @@ fun DataSmoothingSettingsScreen(
     val smoothingMinutes by viewModel.chartSmoothingMinutes.collectAsState()
     val graphOnly by viewModel.dataSmoothingGraphOnly.collectAsState()
     val collapseChunks by viewModel.dataSmoothingCollapseChunks.collectAsState()
+    val exchangeOnly by viewModel.dataSmoothingExchangeOnly.collectAsState()
 
     val isEnabled = smoothingMinutes > 0
     val options = remember { DataSmoothing.enabledMinutesOptions().toList() }
@@ -76,7 +78,9 @@ fun DataSmoothingSettingsScreen(
     val collapseIntervalMinutes = DataSmoothing.collapseIntervalMinutes(configuredMinutes)
     val enabledSummary = buildList {
         add(stringResource(R.string.minutes_short_format, smoothingMinutes.coerceAtLeast(options.first())))
-        if (graphOnly) {
+        if (exchangeOnly) {
+            add(stringResource(R.string.data_smoothing_exchange_only_title))
+        } else if (graphOnly) {
             add(stringResource(R.string.data_smoothing_graph_only_title))
         }
         if (collapseChunks) {
@@ -90,6 +94,7 @@ fun DataSmoothingSettingsScreen(
         else ->
             stringResource(R.string.data_smoothing_collapse_desc_match, collapseIntervalMinutes)
     }
+    val exchangeOnlySubtitle = stringResource(R.string.data_smoothing_exchange_only_desc)
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -160,7 +165,11 @@ fun DataSmoothingSettingsScreen(
                             )
 
                             Text(
-                                text = stringResource(R.string.graph_smoothing_desc),
+                                text = if (exchangeOnly) {
+                                    stringResource(R.string.data_smoothing_exchange_only_desc)
+                                } else {
+                                    stringResource(R.string.graph_smoothing_desc)
+                                },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -228,6 +237,16 @@ fun DataSmoothingSettingsScreen(
                     icon = Icons.AutoMirrored.Filled.TrendingUp,
                     iconTint = MaterialTheme.colorScheme.primary,
                     position = CardPosition.TOP,
+                    enabled = isEnabled
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.data_smoothing_exchange_only_title),
+                    subtitle = exchangeOnlySubtitle,
+                    checked = exchangeOnly,
+                    onCheckedChange = { viewModel.setDataSmoothingExchangeOnly(it) },
+                    icon = Icons.AutoMirrored.Filled.Send,
+                    iconTint = MaterialTheme.colorScheme.tertiary,
+                    position = CardPosition.MIDDLE,
                     enabled = isEnabled
                 )
                 SettingsSwitchItem(

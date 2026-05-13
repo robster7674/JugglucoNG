@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.withContext
 import tk.glucodata.Natives
 import tk.glucodata.UiRefreshBus
+import tk.glucodata.Applic
 import tk.glucodata.BatteryTrace
 import tk.glucodata.CurrentDisplaySource
 import tk.glucodata.DataSmoothing
@@ -32,6 +33,7 @@ import tk.glucodata.alerts.CustomAlertRepository
 import tk.glucodata.drivers.ManagedSensorRuntime
 import tk.glucodata.drivers.ManagedSensorStatusPolicy
 import tk.glucodata.drivers.ManagedSensorUiFamily
+import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.ui.util.resolveDashboardSensorStatus
 import kotlin.math.roundToInt
 
@@ -174,6 +176,9 @@ class DashboardViewModel(
 
     private val _dataSmoothingCollapseChunks = MutableStateFlow(false)
     val dataSmoothingCollapseChunks = _dataSmoothingCollapseChunks.asStateFlow()
+
+    private val _dataSmoothingExchangeOnly = MutableStateFlow(false)
+    val dataSmoothingExchangeOnly = _dataSmoothingExchangeOnly.asStateFlow()
 
     private val _previewWindowMode = MutableStateFlow(0)
     val previewWindowMode = _previewWindowMode.asStateFlow()
@@ -399,6 +404,7 @@ class DashboardViewModel(
         _chartSmoothingMinutes.value = DataSmoothing.getMinutes(context)
         _dataSmoothingGraphOnly.value = DataSmoothing.isGraphOnly(context)
         _dataSmoothingCollapseChunks.value = DataSmoothing.collapseChunks(context)
+        _dataSmoothingExchangeOnly.value = DataSmoothing.smoothOnlyExchangeOutputs(context)
         _previewWindowMode.value = prefs.getInt("dashboard_chart_preview_window_mode", 0)
         val journalEnabled = prefs.getBoolean("dashboard_journal_enabled", true)
         _journalEnabled.value = journalEnabled
@@ -513,7 +519,7 @@ class DashboardViewModel(
                 val officialEnd = snapshot[4]
                 _sensorStatus.value = resolveDashboardSensorStatus(sName, sensorKind, startMsec, nativeStatus)
 
-                _viewMode.value = managedSnapshot?.viewMode ?: vm
+                _viewMode.value = ManagedSensorViewModeStore.read(Applic.app, sName, managedSnapshot?.viewMode ?: vm)
 
                 val lifecycle = ManagedSensorStatusPolicy.resolveLifecycleSummary(
                     startTimeMs = managedSnapshot?.startTimeMs?.takeIf { it > 0L } ?: startMsec,
@@ -530,7 +536,7 @@ class DashboardViewModel(
                 _currentDay.value = lifecycle.currentDay
             } else {
                 _sensorStatus.value = resolveDashboardSensorStatus(sName, nativeStatus)
-                _viewMode.value = managedSnapshot?.viewMode ?: 0
+                _viewMode.value = ManagedSensorViewModeStore.read(Applic.app, sName, managedSnapshot?.viewMode ?: 0)
                 val lifecycle = ManagedSensorStatusPolicy.resolveLifecycleSummary(
                     startTimeMs = managedSnapshot?.startTimeMs ?: 0L,
                     officialEndMs = managedSnapshot?.officialEndMs ?: 0L,
@@ -816,6 +822,10 @@ class DashboardViewModel(
 
     fun setDataSmoothingGraphOnly(enabled: Boolean) {
         val context = tk.glucodata.Applic.app
+        if (enabled) {
+            DataSmoothing.setSmoothOnlyExchangeOutputs(context, false)
+            _dataSmoothingExchangeOnly.value = false
+        }
         DataSmoothing.setGraphOnly(context, enabled)
         _dataSmoothingGraphOnly.value = enabled
         refreshCurrentDisplayAfterSmoothingChange()
@@ -825,6 +835,17 @@ class DashboardViewModel(
         val context = tk.glucodata.Applic.app
         DataSmoothing.setCollapseChunks(context, enabled)
         _dataSmoothingCollapseChunks.value = enabled
+        refreshCurrentDisplayAfterSmoothingChange()
+    }
+
+    fun setDataSmoothingExchangeOnly(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        if (enabled) {
+            DataSmoothing.setGraphOnly(context, false)
+            _dataSmoothingGraphOnly.value = false
+        }
+        DataSmoothing.setSmoothOnlyExchangeOutputs(context, enabled)
+        _dataSmoothingExchangeOnly.value = enabled
         refreshCurrentDisplayAfterSmoothingChange()
     }
 

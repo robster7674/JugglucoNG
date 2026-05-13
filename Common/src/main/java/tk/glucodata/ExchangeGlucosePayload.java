@@ -74,10 +74,10 @@ final class ExchangeGlucosePayload {
             String fallbackPrimaryText) {
         CurrentDisplaySource.Snapshot current = null;
         try {
-            current = CurrentDisplaySource.resolveCurrent(Notify.glucosetimeout, preferredSensorId);
+            current = CurrentDisplaySource.resolveCurrentForExchange(Notify.glucosetimeout, preferredSensorId);
         } catch (Throwable th) {
             if (Log.doLog) {
-                Log.i("ExchangeGlucosePayload", "resolveCurrent failed " + th);
+                Log.i("ExchangeGlucosePayload", "resolveCurrentForExchange failed " + th);
             }
         }
 

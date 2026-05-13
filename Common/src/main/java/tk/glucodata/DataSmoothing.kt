@@ -8,6 +8,7 @@ object DataSmoothing {
     private const val LAST_ENABLED_MINUTES_KEY = "dashboard_data_smoothing_last_enabled_minutes"
     private const val GRAPH_ONLY_KEY = "dashboard_data_smoothing_graph_only"
     private const val COLLAPSE_CHUNKS_KEY = "dashboard_data_smoothing_collapse_chunks"
+    private const val EXCHANGE_OUTPUTS_ONLY_KEY = "dashboard_data_smoothing_exchange_outputs_only"
     private const val MAX_CHUNK_INTERVAL_MINUTES = 5
     private const val DEFAULT_ENABLED_MINUTES = MAX_CHUNK_INTERVAL_MINUTES
 
@@ -57,6 +58,46 @@ object DataSmoothing {
     }
 
     @JvmStatic
+    fun smoothOnlyExchangeOutputs(context: Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getBoolean(EXCHANGE_OUTPUTS_ONLY_KEY, false)
+    }
+
+    @JvmStatic
+    fun shouldSmoothGraph(context: Context): Boolean {
+        return getMinutes(context) > 0 && !smoothOnlyExchangeOutputs(context)
+    }
+
+    @JvmStatic
+    fun graphSmoothingMinutes(context: Context): Int {
+        return if (shouldSmoothGraph(context)) getMinutes(context) else 0
+    }
+
+    @JvmStatic
+    fun shouldSmoothLocalData(context: Context): Boolean {
+        return getMinutes(context) > 0 &&
+            !isGraphOnly(context) &&
+            !smoothOnlyExchangeOutputs(context)
+    }
+
+    @JvmStatic
+    fun shouldSmoothExchangeOutputs(context: Context): Boolean {
+        return shouldSmoothExchangeOutputs(
+            smoothingMinutes = getMinutes(context),
+            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context)
+        )
+    }
+
+    @JvmStatic
+    fun shouldCollapseExchangeOutputs(context: Context): Boolean {
+        return shouldCollapseExchangeOutputs(
+            smoothingMinutes = getMinutes(context),
+            exchangeOutputsOnly = smoothOnlyExchangeOutputs(context),
+            collapseChunks = collapseChunks(context)
+        )
+    }
+
+    @JvmStatic
     fun setMinutes(context: Context, minutes: Int) {
         val sanitized = sanitizeMinutes(minutes)
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -89,6 +130,14 @@ object DataSmoothing {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(COLLAPSE_CHUNKS_KEY, enabled)
+            .apply()
+    }
+
+    @JvmStatic
+    fun setSmoothOnlyExchangeOutputs(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(EXCHANGE_OUTPUTS_ONLY_KEY, enabled)
             .apply()
     }
 
@@ -228,6 +277,24 @@ object DataSmoothing {
             points.isNotEmpty() -> listOf(points.last())
             else -> points
         }
+    }
+
+    internal fun shouldSmoothExchangeOutputs(
+        smoothingMinutes: Int,
+        exchangeOutputsOnly: Boolean
+    ): Boolean {
+        return sanitizeMinutes(smoothingMinutes) > 0 && exchangeOutputsOnly
+    }
+
+    internal fun shouldCollapseExchangeOutputs(
+        smoothingMinutes: Int,
+        exchangeOutputsOnly: Boolean,
+        collapseChunks: Boolean
+    ): Boolean {
+        return collapseChunks && shouldSmoothExchangeOutputs(
+            smoothingMinutes = smoothingMinutes,
+            exchangeOutputsOnly = exchangeOutputsOnly
+        )
     }
 
     private fun setLastEnabledMinutes(context: Context, minutes: Int) {
