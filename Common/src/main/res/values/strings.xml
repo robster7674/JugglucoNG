@@ -1941,4 +1941,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_vk_token">VK token</string>
     <string name="api_source_vk_sender_id">Sender or peer ID</string>
     <string name="api_source_vk_note">Uses compact VK messages. Messages older than 24 hours can disappear.</string>
+    <string name="voice_schedule_title">Speak Schedule</string>
+    <string name="voice_schedule_desc">Only speak readings during this time window</string>
+    <string name="voice_schedule_from">From</string>
+    <string name="voice_schedule_until">Until</string>
 </resources>
