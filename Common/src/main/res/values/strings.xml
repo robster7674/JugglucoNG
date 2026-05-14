@@ -1972,4 +1972,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_token">Telegram bot token</string>
     <string name="api_source_telegram_chat_ids">Allowed chat IDs</string>
     <string name="api_source_telegram_note">Telegram keeps bot updates for up to 24 hours. Enter one or more chat IDs/usernames whose bot messages may be imported.</string>
+    <string name="voice_schedule_title">Speak Schedule</string>
+    <string name="voice_schedule_desc">Only speak readings during this time window</string>
+    <string name="voice_schedule_from">From</string>
+    <string name="voice_schedule_until">Until</string>
 </resources>
