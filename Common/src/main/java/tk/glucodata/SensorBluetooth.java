@@ -1083,6 +1083,9 @@ public class SensorBluetooth {
             if (dataptr != 0L || canRunWithoutNativeData) {
                 adoptCurrentSensorIfBlank(sensorId);
             }
+            if (canRunWithoutNativeData) {
+                cb.connectDevice(0);
+            }
         }
     }
 
