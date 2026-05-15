@@ -148,11 +148,76 @@ public static void removeVoiceOptionsListener(Runnable listener) {
         }
     }
 
+static String getFriendlyVoiceName(Voice voice) {
+    String systemName = voice.getName();
+    if (systemName.contains("-x-")) {
+        String id = systemName.split("-x-")[1].split("-")[0];
+        if (id.startsWith("msm")) return "Device Voice";
+        switch (id) {
+            case "iob": return "Voice A";
+            case "iog": return "Voice B";
+            case "iol": return "Voice C";
+            case "iom": return "Voice D";
+            case "sfg": return "Voice E";
+            case "tpc": return "Voice F";
+            case "tpd": return "Voice G";
+            case "tpf": return "Voice H";
+            default:    return "Voice (" + id.toUpperCase() + ")";
+        }
+    }
+    return systemName;
+}
+
+private static volatile Runnable previewDoneCallback;
+
+public static void setPreviewDoneListener(Runnable r) {
+    previewDoneCallback = r;
+}
+
+public static void previewVoice(int index) {
+    if (DontTalk) return;
+    var talk = SuperGattCallback.talker;
+    if (talk == null || !talk.engineReady) return;
+    Voice voice;
+    synchronized (voiceChoice) {
+        if (index < 0 || index >= voiceChoice.size()) return;
+        voice = voiceChoice.get(index);
+    }
+    talk.setvalues();
+    talk.engine.setVoice(voice);
+    talk.speakPreview();
+}
+
+private void speakPreview() {
+    if (DontTalk) return;
+    try {
+        if (android.os.Build.VERSION.SDK_INT >= minandroid) {
+            engine.setAudioAttributes(mediaAudio);
+            engine.speak("This is a voice preview.", TextToSpeech.QUEUE_FLUSH, null, "voice_preview");
+            engine.setAudioAttributes(notification_audio);
+        } else {
+            engine.speak("This is a voice preview.", TextToSpeech.QUEUE_FLUSH, null);
+        }
+    } catch (Throwable th) {
+        Log.stack(LOG_ID, "speakPreview failed", th);
+    }
+}
+
+public static void stopPreview() {
+    var talk = SuperGattCallback.talker;
+    if (talk != null && talk.engine != null) {
+        talk.engine.stop();
+        talk.setvoice();
+    }
+    var cb = previewDoneCallback;
+    if (cb != null) Applic.RunOnUiThread(cb);
+}
+
 public static ArrayList<String> getVoiceNames() {
     ArrayList<String> names=new ArrayList<>();
     synchronized(voiceChoice) {
         for(var voice:voiceChoice) {
-            names.add(voice.getName());
+            names.add(getFriendlyVoiceName(voice));
             }
         }
     return names;
@@ -337,6 +402,8 @@ if(!DontTalk) {
                         if(voice.isNetworkConnectionRequired()) continue;
                         // Skip voices that are listed but not actually installed
                         if(voice.getFeatures().contains(android.speech.tts.TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)) continue;
+                        // Skip base locale placeholder — not a selectable voice
+                        if(voice.getName().endsWith("-language")) continue;
                         filtered.add(voice);
                         }
                     filtered.sort(Comparator.comparing(Voice::getName));
@@ -349,8 +416,8 @@ if(!DontTalk) {
                         {if(doLog) {Log.i(LOG_ID,"Talker spinner!=null");};};
                           Applic.RunOnUiThread(() -> {
                             spin.setAdapter(new RangeAdapter<Voice>(voiceChoice, Applic.app, voice -> {
-                                    return voice.getName();
-                                    })); 
+                                    return getFriendlyVoiceName(voice);
+                                    }));
                             if(voicepos>=0&&voicepos<voiceChoice.size())
                                 spin.setSelection(voicepos);
                             });
@@ -382,6 +449,10 @@ if(!DontTalk) {
             if(doLog) {Log.i(LOG_ID,"onDone "+utteranceId);};
             if(!notifyfocus)
                 doTurnFocusoff();
+            if ("voice_preview".equals(utteranceId)) {
+                var cb = previewDoneCallback;
+                if (cb != null) Applic.RunOnUiThread(cb);
+            }
         }
 
         @Override
@@ -389,7 +460,10 @@ if(!DontTalk) {
             if(doLog) {Log.i(LOG_ID,"onError "+utteranceId);};
             if(!notifyfocus)
                 doTurnFocusoff();
-
+            if ("voice_preview".equals(utteranceId)) {
+                var cb = previewDoneCallback;
+                if (cb != null) Applic.RunOnUiThread(cb);
+            }
             }
         @Override
         public void onStart(String utteranceId) {
@@ -676,7 +750,7 @@ private static View makeConfigView(MainActivity context, boolean overlayMode, Ru
 
             } });
         spin.setAdapter(new RangeAdapter<Voice>(voiceChoice, context, voice -> {
-                return voice.getName();
+                return getFriendlyVoiceName(voice);
                 }));
         {if(doLog) {Log.i(LOG_ID,"voicepos="+voicepos);};};
         if(voicepos>=0&&voicepos<voiceChoice.size())

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Schedule
@@ -120,6 +121,7 @@ fun TalkerSettingsScreen(navController: NavController) {
     var uiState by remember(activity) { mutableStateOf(loadTalkerUiState(activity)) }
     var separationText by remember { mutableStateOf(uiState.separationSeconds.toString()) }
     var voiceNames by remember(activity) { mutableStateOf(Talker.getVoiceNames().toList()) }
+    var previewingVoiceIndex by remember { mutableStateOf(-1) }
     var profileMenuExpanded by remember { mutableStateOf(false) }
     var voiceMenuExpanded by remember { mutableStateOf(false) }
     var scheduleEnabled by remember { mutableStateOf(SpeakSchedule.isEnabled(activity)) }
@@ -147,8 +149,11 @@ fun TalkerSettingsScreen(navController: NavController) {
         }
         Talker.addVoiceOptionsListener(listener)
         listener.run()
+        Talker.setPreviewDoneListener { previewingVoiceIndex = -1 }
         onDispose {
             Talker.removeVoiceOptionsListener(listener)
+            Talker.setPreviewDoneListener(null)
+            Talker.stopPreview()
             Talker.finishComposeSession()
         }
     }
@@ -318,8 +323,25 @@ fun TalkerSettingsScreen(navController: NavController) {
                     onExpandedChange = { voiceMenuExpanded = it }
                 ) {
                     voiceNames.forEachIndexed { index, label ->
+                        val isPreviewing = previewingVoiceIndex == index
                         DropdownMenuItem(
                             text = { Text(label) },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    if (isPreviewing) {
+                                        Talker.stopPreview()
+                                        previewingVoiceIndex = -1
+                                    } else {
+                                        previewingVoiceIndex = index
+                                        Talker.previewVoice(index)
+                                    }
+                                }) {
+                                    Icon(
+                                        if (isPreviewing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
                             onClick = {
                                 voiceMenuExpanded = false
                                 persist(uiState.copy(selectedVoiceIndex = index))
