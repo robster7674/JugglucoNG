@@ -101,6 +101,7 @@ private data class TalkerUiState(
     val speakMessages: Boolean,
     val speakAlarms: Boolean,
     val mediaSound: Boolean,
+    val overrideSilent: Boolean,
     val separationSeconds: Int,
     val speed: Float,
     val pitch: Float,
@@ -161,6 +162,7 @@ fun TalkerSettingsScreen(navController: NavController) {
             updated.speakMessages,
             updated.speakAlarms,
             updated.mediaSound,
+            updated.overrideSilent,
             updated.speed,
             updated.pitch,
             updated.separationSeconds,
@@ -329,9 +331,18 @@ fun TalkerSettingsScreen(navController: NavController) {
                 SettingsSwitchItem(
                     title = "Media",
                     checked = uiState.mediaSound,
-                    onCheckedChange = { persist(uiState.copy(mediaSound = it)) },
+                    onCheckedChange = { persist(uiState.copy(mediaSound = it, overrideSilent = false)) },
                     icon = Icons.Default.MusicNote,
                     iconTint = MaterialTheme.colorScheme.tertiary,
+                    position = CardPosition.MIDDLE
+                )
+                SettingsSwitchItem(
+                    title = stringResource(R.string.override_silent_mode),
+                    subtitle = stringResource(R.string.override_silent_mode_desc),
+                    checked = uiState.overrideSilent,
+                    onCheckedChange = { persist(uiState.copy(overrideSilent = it, mediaSound = false)) },
+                    icon = Icons.Default.NotificationsActive,
+                    iconTint = MaterialTheme.colorScheme.error,
                     position = CardPosition.BOTTOM
                 )
             }
@@ -686,12 +697,14 @@ private fun SliderCard(
 
 private fun loadTalkerUiState(context: Context): TalkerUiState {
     Talker.ensureComposeTalker(context)
+    val soundType = Natives.getSoundType()
     return TalkerUiState(
         speakGlucose = Natives.getVoiceActive(),
         talkTouch = Natives.gettouchtalk(),
         speakMessages = Natives.speakmessages(),
         speakAlarms = Natives.speakalarms(),
-        mediaSound = Natives.getSoundType() == AudioAttributes.USAGE_MEDIA,
+        mediaSound = soundType == AudioAttributes.USAGE_MEDIA,
+        overrideSilent = soundType == AudioAttributes.USAGE_ALARM,
         separationSeconds = Talker.getSeparationSeconds().coerceAtLeast(1),
         speed = Talker.getSelectedSpeed().coerceAtLeast(0.18f),
         pitch = Talker.getSelectedPitch().coerceAtLeast(0.18f),
