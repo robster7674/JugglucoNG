@@ -183,7 +183,7 @@ public static void ensureComposeTalker(Context context) {
         SuperGattCallback.newtalker(context);
     }
 
-public static void applyComposeSettings(Context context, boolean speakGlucose, boolean touchTalk, boolean speakMessages, boolean speakAlarms, boolean mediaSound, float speed, float pitch, int separationSeconds, int selectedVoice) {
+public static void applyComposeSettings(Context context, boolean speakGlucose, boolean touchTalk, boolean speakMessages, boolean speakAlarms, boolean mediaSound, boolean overrideSilent, float speed, float pitch, int separationSeconds, int selectedVoice) {
     if(DontTalk)
         return;
     curspeed=speed;
@@ -193,7 +193,10 @@ public static void applyComposeSettings(Context context, boolean speakGlucose, b
     if(selectedVoice>=0)
         voicepos=selectedVoice;
 
-    if(mediaSound) {
+    if(overrideSilent) {
+        Natives.setSoundType(AudioAttributes.USAGE_ALARM);
+        }
+    else if(mediaSound) {
         Natives.setSoundType(AudioAttributes.USAGE_MEDIA);
         }
     else {

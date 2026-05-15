@@ -520,8 +520,7 @@ public class Notify {
         var ring = setring(uristr, defaults[kind]);
         if (android.os.Build.VERSION.SDK_INT >= 21) {
             try {
-                // Use ALARM stream only if disturb=true AND USEALARM is enabled
-                boolean useAlarmStream = (!AlertType.Companion.isLegacyOnlyId(kind) && getUSEALARM() && disturb);
+                boolean useAlarmStream = (!AlertType.Companion.isLegacyOnlyId(kind) && disturb);
                 ring.setAudioAttributes(useAlarmStream ? ScanNfcV.audioattributes : notification_audio);
             } catch (Throwable e) {
                 Log.stack(LOG_ID, "mkring", e);
@@ -1725,10 +1724,7 @@ public class Notify {
                 final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                 if (current != null) {
                     SuperGattCallback.talker.speak(current.getPrimaryStr(),
-                            getUSEALARM() ? ScanNfcV.audioattributes : notification_audio);
-                    // Applic.scheduler.schedule( () -> SuperGattCallback.talker.speak(glu.value,
-                    // getUSEALARM()?ScanNfcV.audioattributes:notification_audio), 50,
-                    // TimeUnit.MILLISECONDS);
+                            disturb ? ScanNfcV.audioattributes : notification_audio);
                 }
             }
         }
@@ -1812,7 +1808,7 @@ public class Notify {
                         if (current != null) {
                             Applic.scheduler.schedule(
                                     () -> SuperGattCallback.talker.speak(current.getPrimaryStr(),
-                                            getUSEALARM() ? ScanNfcV.audioattributes : notification_audio),
+                                            disturb ? ScanNfcV.audioattributes : notification_audio),
                                     300, TimeUnit.MILLISECONDS);
                         } else
                             doTurnFocusoff();
@@ -1970,8 +1966,7 @@ public class Notify {
         final boolean sound = p.getBoolean("alert_" + kind + "_sound", defSound);
         final boolean vibration = p.getBoolean("alert_" + kind + "_vibration", defVibrate);
 
-        final boolean dist = isWearable || getalarmdisturb(kind); // DND might need Prefs too, but keeping Natives for
-                                                                  // now
+        final boolean dist = isWearable || p.getBoolean("alert_" + kind + "_dnd", getalarmdisturb(kind));
         final boolean useAlarmStream = shouldUseAlarmAudioStream(kind, dist);
         final AlertSoundHandle soundHandle = sound ? buildAlertSoundHandle(ringUri, kind, useAlarmStream) : null;
 
