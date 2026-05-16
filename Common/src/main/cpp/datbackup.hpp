@@ -1105,7 +1105,7 @@ public:
       ::shutdown(sock, SHUT_RDWR);
     }
     int ind = host->index;
-    if (ind >= 0) {
+    if (ind >= 0 && ind < (int)sendsocks.size()) {
       int ssock = sendsocks[ind];
       if (ssock >= 0) {
         sendsocks[ind] = -1;

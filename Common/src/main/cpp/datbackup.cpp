@@ -840,10 +840,9 @@ Backup::Backup(std::string_view base): mapdata(base,backupdat,sizeof(struct upda
       else
           connections[i]=new TCPConnect(i);
       }
-  // sendsocks.reserve(getupdatedata()->sendnr);
+   sendsocks.resize(getupdatedata()->sendnr, -1);
    crypts.reserve(getupdatedata()->sendnr);
    for(int i=0;i<getupdatedata()->sendnr;i++) {
-       //sendsocks.push_back(-1);
        auto &host=getupdatedata()->tosend[i];
        if(settings->data()->initVersion<31) { 
           LOGGER("%d set sendjugglucoid=false\n",i);
