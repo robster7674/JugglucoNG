@@ -1058,7 +1058,7 @@ public class SensorBluetooth {
         Natives.setmaxsensors(gattcallbacks.size());
     }
 
-    private void addPersistedManagedCallbacks() {
+    void addPersistedManagedCallbacks() {
         final Context context = Applic.app;
         if (context == null) {
             return;
@@ -1776,12 +1776,20 @@ public class SensorBluetooth {
         if (usebluetooth) {
             if (SensorBluetooth.blueone == null) {
                 blueone = new tk.glucodata.SensorBluetooth();
-                if (blueone != null && hasSensors) {
-                    blueone.startDevices(sensors);
+                if (blueone != null) {
+                    if (hasSensors) {
+                        blueone.startDevices(sensors);
+                    } else {
+                        // No native BT sensors, but managed sensors (e.g. NightscoutFollower) still need initialization.
+                        blueone.addPersistedManagedCallbacks();
+                    }
                 }
             } else {
-                if (hasSensors)
+                if (hasSensors) {
                     blueone.connectDevices(0);
+                } else {
+                    blueone.addPersistedManagedCallbacks();
+                }
             }
         }
     }
