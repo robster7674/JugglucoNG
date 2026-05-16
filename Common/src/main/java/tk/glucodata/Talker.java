@@ -479,9 +479,37 @@ if(!DontTalk) {
         }
    }
 
+// Fraction of the stream's max volume that is the minimum allowed for TTS output.
+// Prevents silence when the user (or system) drives the stream to zero.
+private static final float MIN_TTS_VOLUME_FRACTION = 0.25f;
+
+private static int usageToStreamType(int usage) {
+    switch (usage) {
+        case AudioAttributes.USAGE_ALARM:  return AudioManager.STREAM_ALARM;
+        case AudioAttributes.USAGE_MEDIA:  return AudioManager.STREAM_MUSIC;
+        default:                           return AudioManager.STREAM_NOTIFICATION;
+    }
+}
+
+private static void ensureMinStreamVolume() {
+    try {
+        AudioManager am = (AudioManager) Applic.app.getSystemService(Context.AUDIO_SERVICE);
+        if (am == null) return;
+        final int stream = usageToStreamType(Natives.getSoundType());
+        final int maxVol = am.getStreamMaxVolume(stream);
+        final int minVol = Math.max(1, Math.round(maxVol * MIN_TTS_VOLUME_FRACTION));
+        if (am.getStreamVolume(stream) < minVol) {
+            am.setStreamVolume(stream, minVol, 0);
+        }
+    } catch (Throwable th) {
+        Log.stack(LOG_ID, "ensureMinStreamVolume", th);
+    }
+}
+
 public void speak(String message) {
     if(!DontTalk) {
         try {
+            ensureMinStreamVolume();
             if(
                     ((android.os.Build.VERSION.SDK_INT >= 21)?
                     engine.speak(message, TextToSpeech.QUEUE_FLUSH, null,message):

@@ -135,10 +135,10 @@ fun CommonAlertSettings(
                 unselectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
 
-            AnimatedVisibility(visible = config.vibrationEnabled) {
+            AnimatedVisibility(visible = config.soundEnabled || config.vibrationEnabled) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = stringResource(R.string.haptics),
+                        text = stringResource(R.string.intensity),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
