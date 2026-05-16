@@ -816,7 +816,7 @@ public:
       }
     }
     int portint = atoi(port.data());
-    if (!passiveonly && (portint > 65535 || portint < 1024)) {
+    if (!passiveonly && (portint > 65535 || portint < 1)) {
       LOGGER("port out of range %d\n", portint);
       return -1;
     }

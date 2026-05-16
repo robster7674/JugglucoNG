@@ -131,7 +131,7 @@ public static void show(Activity context,View parent) {
 			Applic.argToaster(context,R.string.nohttpport,Toast.LENGTH_LONG);
 			return;
 			}	
-		if(portnum<1024||portnum> 65535) {
+		if(portnum<1||portnum> 65535) {
 			Applic.argToaster(context,R.string.portrange,Toast.LENGTH_LONG);
 			return;
 			}
