@@ -81,7 +81,6 @@ class TalkerAudioStreamTests {
     // selspeak should only call speak() when SpeakSchedule.isWithinSchedule returns true.
 
     private fun selspeakShouldSpeak(enabled: Boolean, start: Int, end: Int, nowMinutes: Int, expectSpeak: Boolean) {
-        val cal = Calendar.getInstance()
         // Simulate the schedule check
         val withinSchedule = if (!enabled) true
             else if (start == end) true
