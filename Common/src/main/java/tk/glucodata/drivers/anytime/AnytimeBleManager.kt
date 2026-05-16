@@ -177,6 +177,7 @@ class AnytimeBleManager(
     @Volatile private var lastReferenceAppliedGlucoseId: Int = 0
     @Volatile private var calibrationStatusText: String = ""
     @Volatile private var calibrationStatusAtMs: Long = 0L
+    @Volatile private var calibrationStatusClearAfterGlucoseId: Int = 0
     @Volatile private var lastAlgorithmCalibrationStatus: Int =
         AnytimeCalibrationPolicy.CALIBRATION_STATUS_UNKNOWN
     @Volatile private var packetsSinceInit: Int = 0
@@ -1569,6 +1570,7 @@ class AnytimeBleManager(
                 resId = R.string.anytime_calibration_accepted_status,
                 fallback = "Calibration accepted; applies from reading #$lastReferenceBgGlucoseId",
                 lastReferenceBgGlucoseId,
+                clearAfterGlucoseId = lastReferenceBgGlucoseId + 1,
             )
         }
         pendingFingerstickMgdl = -1
@@ -1577,18 +1579,36 @@ class AnytimeBleManager(
         UiRefreshBus.requestStatusRefresh()
     }
 
-    private fun setCalibrationStatus(resId: Int, fallback: String, vararg args: Any) {
+    private fun setCalibrationStatus(
+        resId: Int,
+        fallback: String,
+        vararg args: Any,
+        clearAfterGlucoseId: Int = 0,
+    ) {
         val localized = Applic.app?.let { context ->
             runCatching { context.getString(resId, *args) }.getOrNull()
         }
         calibrationStatusText = localized ?: fallback
         calibrationStatusAtMs = System.currentTimeMillis()
+        calibrationStatusClearAfterGlucoseId = clearAfterGlucoseId
+        UiRefreshBus.requestStatusRefresh()
+    }
+
+    private fun clearCalibrationStatus() {
+        calibrationStatusText = ""
+        calibrationStatusAtMs = 0L
+        calibrationStatusClearAfterGlucoseId = 0
         UiRefreshBus.requestStatusRefresh()
     }
 
     private fun visibleCalibrationStatus(): String {
         val status = calibrationStatusText
         if (status.isBlank()) return ""
+        val clearAfter = calibrationStatusClearAfterGlucoseId
+        if (clearAfter > 0 && lastGlucoseId >= clearAfter) {
+            clearCalibrationStatus()
+            return ""
+        }
         val ageMs = System.currentTimeMillis() - calibrationStatusAtMs
         return if (ageMs <= CALIBRATION_STATUS_TTL_MS) status else ""
     }
@@ -1603,12 +1623,12 @@ class AnytimeBleManager(
             "Fingerstick BG reference ${"%.1f".format(enteredMgdl)}mg/dL consumed at " +
                     "glucose id=$targetId by ${result.source}; algorithm output=${"%.1f".format(result.mgdl)}mg/dL"
         )
-        setCalibrationStatus(
-            resId = R.string.anytime_calibration_used_status,
-            fallback = "Calibration used at reading #$targetId: ${"%.0f".format(result.mgdl)} mg/dL",
-            targetId,
-            result.mgdl,
-        )
+//        setCalibrationStatus(
+//            resId = R.string.anytime_calibration_used_status,
+//            fallback = "Calibration used at reading #$targetId: ${"%.0f".format(result.mgdl)} mg/dL",
+//            targetId,
+//            result.mgdl,
+//        )
     }
 
     private fun handleUnbindAck() {
@@ -2495,7 +2515,7 @@ class AnytimeBleManager(
     override fun getStartTimeMs(): Long = sensorStartAtMs
     override fun getOfficialEndMs(): Long =
         if (sensorStartAtMs <= 0L) 0L else sensorStartAtMs + profile.ratedLifetimeMs()
-    override fun getExpectedEndMs(): Long = getOfficialEndMs()
+    override fun getExpectedEndMs(): Long = 0L
     override fun isSensorExpired(): Boolean {
         val end = getOfficialEndMs()
         return end > 0L && System.currentTimeMillis() > end
