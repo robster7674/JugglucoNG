@@ -710,8 +710,8 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
             /* pass */ password.ifEmpty { null },
             /* starttime */ 0L,
             /* label */ connectionLabel.ifEmpty { null },
-            /* testip */ isICE || isDirect || isLocal,
-            /* hasname */ isDirect,
+            /* testip */ isICE || isDirect || (isLocal && !autoDetect),
+            /* hasname */ isDirect || (isLocal && !autoDetect),
             /* icelabel */ if (isICE) iceLabel else null,
             /* side */ iceSide
         )
