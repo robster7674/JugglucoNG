@@ -53,10 +53,27 @@ import tk.glucodata.ui.components.*
 import tk.glucodata.ui.util.ConnectedButtonGroup
 import tk.glucodata.util.DiscoveredMirror
 import tk.glucodata.util.MDnsManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.InetSocketAddress
+import java.net.Socket
 
 private const val UNIFIED_EXTRA_SCAN_TEXT = "tk.glucodata.extra.scan_text"
 private const val UNIFIED_EXTRA_SCAN_CONTEXT = "tk.glucodata.extra.scan_context"
 private const val UNIFIED_SCAN_CONTEXT_MIRROR = 1
+
+private enum class TestState { IDLE, TESTING, SUCCESS, FAILURE }
+
+private suspend fun testTcpConnection(host: String, port: Int): Boolean =
+    withContext(Dispatchers.IO) {
+        try {
+            Socket().use { it.connect(InetSocketAddress(host, port), 5000) }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
 
 // ── QR Code ──────────────────────────────────────────────────────────────────
 
@@ -577,6 +594,8 @@ enum class ConnectionDirection { PASSIVE, ACTIVE, BOTH }
 fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val isNew = pos == -1
+    val scope = rememberCoroutineScope()
+    var testState by remember { mutableStateOf(TestState.IDLE) }
     fun connectionTypeLabel(option: ConnectionType): String = when (option) {
         ConnectionType.LOCAL -> context.getString(R.string.mirror_type_local)
         ConnectionType.ICE -> context.getString(R.string.ice)
@@ -645,6 +664,8 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
             else -> ConnectionDirection.BOTH
         }
     )}
+
+    LaunchedEffect(hostname, port, connectionType) { testState = TestState.IDLE }
 
     fun save(): Boolean {
         val isICE = connectionType == ConnectionType.ICE
@@ -879,6 +900,60 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                     }
                 }
             )
+
+            // Test connectivity (only for connections with a specific hostname/IP)
+            val canTest = (connectionType == ConnectionType.DIRECT ||
+                    (connectionType == ConnectionType.LOCAL && !autoDetect)) &&
+                    hostname.isNotBlank()
+            if (canTest) {
+                Spacer(Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            testState = TestState.TESTING
+                            scope.launch {
+                                val portInt = port.toIntOrNull() ?: 8795
+                                testState = if (testTcpConnection(hostname.trim(), portInt))
+                                    TestState.SUCCESS else TestState.FAILURE
+                            }
+                        },
+                        enabled = testState != TestState.TESTING,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (testState == TestState.TESTING) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(if (testState == TestState.TESTING)
+                            stringResource(R.string.connecting) else stringResource(R.string.test))
+                    }
+                    when (testState) {
+                        TestState.SUCCESS -> {
+                            Icon(Icons.Filled.CheckCircle, contentDescription = null,
+                                tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
+                            Text(stringResource(R.string.status_connected),
+                                color = Color(0xFF4CAF50),
+                                style = MaterialTheme.typography.bodyMedium)
+                        }
+                        TestState.FAILURE -> {
+                            Icon(Icons.Filled.Error, contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
+                            Text(stringResource(R.string.status_connection_failed),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium)
+                        }
+                        else -> {}
+                    }
+                }
+            }
 
             // Save
             Spacer(Modifier.height(24.dp))
