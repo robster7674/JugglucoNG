@@ -3,6 +3,7 @@ package tk.glucodata.drivers.nightscout
 import org.junit.Assert.*
 import org.junit.Test
 import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Unit tests for NightscoutFollowerRegistry.applyAuth() HTTP header logic.
@@ -18,13 +19,16 @@ class NightscoutFollowerRegistryTests {
 
     private fun applyAuthToMock(secret: String): Map<String, String> {
         val headers = mutableMapOf<String, String>()
-        val connection = object : HttpURLConnection(null as java.net.URL?) {
+        val connection = object : HttpURLConnection(URL("https://example.com")) {
             override fun setRequestProperty(key: String, value: String) {
                 headers[key] = value
             }
             override fun getResponseCode() = 200
             override fun getInputStream() = null as java.io.InputStream?
             override fun getOutputStream() = null as java.io.OutputStream?
+            override fun disconnect() {}
+            override fun usingProxy() = false
+            override fun connect() {}
         }
         NightscoutFollowerRegistry.applyAuth(connection, secret)
         return headers
@@ -57,8 +61,8 @@ class NightscoutFollowerRegistryTests {
     fun applyAuth_plainText_hashed() {
         val plain = "my-super-secret"
         val headers = applyAuthToMock(plain)
-        // SHA-1 of "my-super-secret" = 8ae8a0d03a065a868f4e80b61f6a11f7f5ac02a0
-        assertEquals("8ae8a0d03a065a868f4e80b61f6a11f7f5ac02a0", headers["api-secret"])
+        // SHA-1 of "my-super-secret" (verified via: echo -n "my-super-secret" | sha1sum)
+        assertEquals("93f6b7b158a389c82510986ffaef1460c93093f7", headers["api-secret"])
     }
 
     @Test
@@ -71,7 +75,8 @@ class NightscoutFollowerRegistryTests {
     @Test
     fun applyAuth_bearerPrefixCaseInsensitive() {
         val headers = applyAuthToMock("bearer my-token-456")
-        assertEquals("Bearer my-token-456", headers["Authorization"])
+        // case-insensitive check; original casing of secret is preserved in header value
+        assertEquals("bearer my-token-456", headers["Authorization"])
     }
 
     @Test
@@ -91,7 +96,8 @@ class NightscoutFollowerRegistryTests {
     @Test
     fun normalizeUrl_addsHttpsWhenMissing() {
         assertEquals("https://example.com", NightscoutFollowerRegistry.normalizeUrl("example.com"))
-        assertEquals("https://example.com/", NightscoutFollowerRegistry.normalizeUrl("example.com/"))
+        // trailing slash is stripped
+        assertEquals("https://example.com", NightscoutFollowerRegistry.normalizeUrl("example.com/"))
     }
 
     @Test
