@@ -65,11 +65,28 @@ private const val UNIFIED_SCAN_CONTEXT_MIRROR = 1
 
 private enum class ConnTestState { IDLE, TESTING, SUCCESS, FAILURE }
 
-private suspend fun testTcpConnection(host: String, port: Int): Boolean =
+// Juggluco mirror protocol handshake (sendmagicinit / receivemagic)
+private val JUGGLUCO_SEND_MAGIC = byteArrayOf(
+    218.toByte(), 173.toByte(), 190.toByte(), 237.toByte(),
+    222.toByte(), 237.toByte(), 190.toByte(), 239.toByte(),
+    209.toByte(), 239.toByte(), 0, 0, 0, 1          // last byte must be non-zero
+)
+private val JUGGLUCO_RECV_MAGIC_PREFIX = byteArrayOf(
+    103, 249.toByte(), 45, 66, 52, 128.toByte(), 40,
+    222.toByte(), 186.toByte(), 129.toByte(), 63    // first 11 bytes of receivemagic
+)
+
+private suspend fun testJugglucoConnection(host: String, port: Int): Boolean =
     withContext(Dispatchers.IO) {
         try {
-            Socket().use { it.connect(InetSocketAddress(host, port), 5000) }
-            true
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress(host, port), 5000)
+                socket.soTimeout = 5000
+                socket.getOutputStream().apply { write(JUGGLUCO_SEND_MAGIC); flush() }
+                val buf = ByteArray(15)
+                val read = socket.getInputStream().read(buf)
+                read >= 11 && buf.copyOf(11).contentEquals(JUGGLUCO_RECV_MAGIC_PREFIX)
+            }
         } catch (_: Exception) {
             false
         }
@@ -494,10 +511,13 @@ fun MirrorConnectionCard(
     onDelete: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var qrContent by remember { mutableStateOf<String?>(null) }
+    var cardTestState by remember { mutableStateOf(ConnTestState.IDLE) }
     val chevronRotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
+    LaunchedEffect(expanded) { if (!expanded) cardTestState = ConnTestState.IDLE }
 
     if (qrContent != null) {
         AlertDialog(
@@ -574,6 +594,37 @@ fun MirrorConnectionCard(
                         }
                         TextButton(onClick = { qrContent = Natives.getbackJson(mirror.index) }) {
                             Text(stringResource(R.string.qr))
+                        }
+                        val testHost = mirror.names?.firstOrNull()?.takeIf { it.isNotBlank() }
+                        if (testHost != null) {
+                            TextButton(
+                                onClick = {
+                                    cardTestState = ConnTestState.TESTING
+                                    scope.launch {
+                                        val portInt = mirror.port?.toIntOrNull() ?: 8795
+                                        cardTestState = if (testJugglucoConnection(testHost, portInt))
+                                            ConnTestState.SUCCESS else ConnTestState.FAILURE
+                                    }
+                                },
+                                enabled = cardTestState != ConnTestState.TESTING,
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = when (cardTestState) {
+                                        ConnTestState.SUCCESS -> Color(0xFF4CAF50)
+                                        ConnTestState.FAILURE -> MaterialTheme.colorScheme.error
+                                        else -> MaterialTheme.colorScheme.primary
+                                    }
+                                )
+                            ) {
+                                if (cardTestState == ConnTestState.TESTING) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(12.dp),
+                                        strokeWidth = 1.5.dp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                }
+                                Text(stringResource(R.string.test))
+                            }
                         }
                         TextButton(onClick = onEdit) {
                             Text(stringResource(R.string.edit))
@@ -917,7 +968,7 @@ fun MirrorEditSheet(pos: Int, sheetState: SheetState, onDismiss: () -> Unit) {
                             testState = ConnTestState.TESTING
                             scope.launch {
                                 val portInt = port.toIntOrNull() ?: 8795
-                                testState = if (testTcpConnection(hostname.trim(), portInt))
+                                testState = if (testJugglucoConnection(hostname.trim(), portInt))
                                     ConnTestState.SUCCESS else ConnTestState.FAILURE
                             }
                         },
