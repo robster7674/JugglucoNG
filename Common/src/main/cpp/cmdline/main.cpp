@@ -585,8 +585,8 @@ static constexpr const    char defaultname[]="jugglucodata";
             perror("sscanf");
             return 10;
             }
-        if(sport<1024||sport>65535) {
-            cerr<<"port should be between 1024 and 65535\n";
+        if(sport<1||sport>65535) {
+            cerr<<"port should be between 1 and 65535\n";
             return 10;
             }
         settings->data()->sslport=sport;
