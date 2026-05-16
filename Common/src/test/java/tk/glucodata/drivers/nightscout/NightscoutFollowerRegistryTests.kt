@@ -130,7 +130,7 @@ class NightscoutFollowerRegistryTests {
     fun deriveSensorId_prefixAndHash() {
         val id = NightscoutFollowerRegistry.deriveSensorId("https://example.com")
         assertTrue("should start with NSF-", id.startsWith("NSF-"))
-        assertEquals(10 + 6, id.length) // "NSF-" (4) + 6 hex chars
+        assertEquals(16, id.length) // "NSF-" (4) + 12 hex chars (6 bytes)
     }
 
     @Test
