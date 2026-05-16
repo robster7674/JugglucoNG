@@ -1646,7 +1646,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_delete_connection_message">%1$s wordt definitief verwijderd.</string>
     <string name="mirror_connection_type">Verbindingstype</string>
     <string name="mirror_type_local">Lokaal</string>
-    <string name="mirror_type_direct_ip">Direct IP</string>
+    <string name="mirror_type_direct_ip">Direct</string>
     <string name="mirror_type_local_hint">Zelfde wifi. IP automatisch gedetecteerd.</string>
     <string name="mirror_type_ice_hint">Tussen netwerken via STUN/TURN.</string>
     <string name="mirror_type_direct_hint">Specifieke IP/hostnaam.</string>
