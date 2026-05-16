@@ -1812,7 +1812,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_delete_connection_message">%1$s will be removed permanently.</string>
     <string name="mirror_connection_type">Connection Type</string>
     <string name="mirror_type_local">Local</string>
-    <string name="mirror_type_direct_ip">Direct IP</string>
+    <string name="mirror_type_direct_ip">Direct</string>
     <string name="mirror_type_local_hint">Same Wi-Fi. IP auto-detected.</string>
     <string name="mirror_type_ice_hint">Across networks via STUN/TURN.</string>
     <string name="mirror_type_direct_hint">Specific IP/hostname.</string>
