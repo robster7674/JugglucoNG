@@ -86,7 +86,7 @@ android {
 
     //    buildConfigField 'int', 'noZXing', '1'
         //compileSdk 36
-        applicationId "com.glucodroid"
+        applicationId "cloud.glucosedroid"
 
          versionName '0.9.8-Alpha'
 //    multiDexEnabled true
