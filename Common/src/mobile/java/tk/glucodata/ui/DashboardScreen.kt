@@ -266,6 +266,7 @@ fun DashboardScreen(
     onNavigateToCalibrations: () -> Unit = {},
     onNavigateToHistory: () -> Unit = {},
     onNavigateToMqAccount: () -> Unit = {},
+    onNavigateToNightscout: () -> Unit = {},
     onNavigateToReadiness: () -> Unit = {},
     onTriggerCalibration: (CalibrationSheetState) -> Unit = {}
 ) {
@@ -1061,6 +1062,7 @@ fun DashboardScreen(
                     tk.glucodata.ui.components.SensorType.ICANHEALTH -> showICanHealthWizard = true
                     tk.glucodata.ui.components.SensorType.MQ -> showMQWizard = true
                     tk.glucodata.ui.components.SensorType.ANYTIME -> showAnytimeWizard = true
+                    tk.glucodata.ui.components.SensorType.NIGHTSCOUT -> onNavigateToNightscout()
                 }
             },
                 onImportHistory = {
