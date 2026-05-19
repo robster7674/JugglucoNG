@@ -22,6 +22,7 @@ import tk.glucodata.Notify
 import tk.glucodata.SensorIdentity
 import tk.glucodata.data.GlucoseRepository
 import tk.glucodata.data.HistorySync
+import tk.glucodata.data.journal.AapsJournalImport
 import tk.glucodata.data.journal.JournalEntry
 import tk.glucodata.data.journal.JournalEntryInput
 import tk.glucodata.data.journal.JournalFood
@@ -60,6 +61,7 @@ class DashboardViewModel(
         const val HISTORY_RECOVERY_TAIL_TOLERANCE_MS = 2L * 60L * 1000L
         const val JOURNAL_DOSE_CALCULATOR_KEY = "dashboard_journal_dose_calculator_enabled"
         const val JOURNAL_FOOD_MACROS_KEY = "dashboard_journal_food_macros_enabled"
+        const val JOURNAL_FOOD_LIBRARY_KEY = "dashboard_journal_food_library_enabled"
         const val PREDICTION_CARB_RATIO_KEY = "dashboard_prediction_carb_ratio_g_per_u"
         const val PREDICTION_INSULIN_SENSITIVITY_KEY = "dashboard_prediction_insulin_sensitivity_mgdl_per_u"
         const val PREDICTION_CARB_ABSORPTION_KEY = "dashboard_prediction_carb_absorption_g_per_h"
@@ -193,6 +195,12 @@ class DashboardViewModel(
 
     private val _journalFoodMacrosEnabled = MutableStateFlow(false)
     val journalFoodMacrosEnabled = _journalFoodMacrosEnabled.asStateFlow()
+
+    private val _journalFoodLibraryEnabled = MutableStateFlow(true)
+    val journalFoodLibraryEnabled = _journalFoodLibraryEnabled.asStateFlow()
+
+    private val _aapsJournalImportEnabled = MutableStateFlow(false)
+    val aapsJournalImportEnabled = _aapsJournalImportEnabled.asStateFlow()
 
     private val _predictiveSimulationEnabled = MutableStateFlow(true)
     val predictiveSimulationEnabled = _predictiveSimulationEnabled.asStateFlow()
@@ -428,6 +436,8 @@ class DashboardViewModel(
         _journalEnabled.value = journalEnabled
         _journalDoseCalculatorEnabled.value = prefs.getBoolean(JOURNAL_DOSE_CALCULATOR_KEY, false)
         _journalFoodMacrosEnabled.value = prefs.getBoolean(JOURNAL_FOOD_MACROS_KEY, false)
+        _journalFoodLibraryEnabled.value = prefs.getBoolean(JOURNAL_FOOD_LIBRARY_KEY, true)
+        _aapsJournalImportEnabled.value = AapsJournalImport.isEnabled(context)
         _predictiveSimulationEnabled.value = prefs.getBoolean("dashboard_predictive_simulation_enabled", true)
         _predictionTrendMomentumEnabled.value = prefs.getBoolean("dashboard_prediction_trend_momentum_enabled", true)
         _predictionCarbRatioGramsPerUnit.value = prefs
@@ -540,10 +550,14 @@ class DashboardViewModel(
 
                 _viewMode.value = managedSnapshot?.viewMode ?: vm
 
+                val lifecycleOfficialEndMs = managedSnapshot?.officialEndMs?.takeIf { it > 0L }
+                    ?: if (managedSnapshot == null) officialEnd else 0L
+                val lifecycleExpectedEndMs = managedSnapshot?.expectedEndMs?.takeIf { it > 0L }
+                    ?: if (managedSnapshot == null) expectedEnd else 0L
                 val lifecycle = ManagedSensorStatusPolicy.resolveLifecycleSummary(
                     startTimeMs = managedSnapshot?.startTimeMs?.takeIf { it > 0L } ?: startMsec,
-                    officialEndMs = managedSnapshot?.officialEndMs?.takeIf { it > 0L } ?: officialEnd,
-                    expectedEndMs = managedSnapshot?.expectedEndMs?.takeIf { it > 0L } ?: expectedEnd,
+                    officialEndMs = lifecycleOfficialEndMs,
+                    expectedEndMs = lifecycleExpectedEndMs,
                     sensorRemainingHours = managedSnapshot?.sensorRemainingHours ?: -1,
                     sensorAgeHours = managedSnapshot?.sensorAgeHours ?: -1,
                     fallbackDurationDays = fallbackDurationDays,
@@ -902,6 +916,19 @@ class DashboardViewModel(
         val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
         prefs.edit().putBoolean(JOURNAL_FOOD_MACROS_KEY, enabled).apply()
         _journalFoodMacrosEnabled.value = enabled
+    }
+
+    fun setJournalFoodLibraryEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        val prefs = context.getSharedPreferences("tk.glucodata_preferences", android.content.Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(JOURNAL_FOOD_LIBRARY_KEY, enabled).apply()
+        _journalFoodLibraryEnabled.value = enabled
+    }
+
+    fun setAapsJournalImportEnabled(enabled: Boolean) {
+        val context = tk.glucodata.Applic.app
+        AapsJournalImport.setEnabled(context, enabled)
+        _aapsJournalImportEnabled.value = enabled
     }
 
     fun importHealthConnectActivity(daysBack: Int = 14) {

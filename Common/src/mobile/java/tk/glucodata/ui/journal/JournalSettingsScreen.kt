@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,8 +37,10 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -112,6 +115,8 @@ import tk.glucodata.ui.alerts.AddCustomAlertButton
 import tk.glucodata.ui.components.CardPosition
 import tk.glucodata.ui.components.MasterSwitchCard
 import tk.glucodata.ui.components.SectionLabel
+import tk.glucodata.ui.components.SettingsItem
+import tk.glucodata.ui.components.SettingsSwitchItem
 import tk.glucodata.ui.components.StyledSwitch
 import tk.glucodata.ui.components.cardShape
 import tk.glucodata.ui.viewmodel.DashboardViewModel
@@ -148,6 +153,8 @@ fun JournalSettingsScreen(
     val journalEnabled by viewModel.journalEnabled.collectAsState()
     val journalDoseCalculatorEnabled by viewModel.journalDoseCalculatorEnabled.collectAsState()
     val journalFoodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
+    val journalFoodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
+    val aapsJournalImportEnabled by viewModel.aapsJournalImportEnabled.collectAsState()
     val allPresets by viewModel.journalInsulinPresets.collectAsState()
     val allFoods by viewModel.journalFoods.collectAsState()
     val activePresets = remember(allPresets) { allPresets.filter { !it.isArchived } }
@@ -188,83 +195,321 @@ fun JournalSettingsScreen(
             }
 
             item(key = "open_journal") {
-                FilledTonalButton(
-                    onClick = { navController.navigate("history") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                JournalActionRow(
+                    journalEnabled = journalEnabled,
+                    onHistoryClick = { navController.navigate("history") },
+                    onImportActivityClick = { viewModel.importHealthConnectActivity(daysBack = 14) }
+                )
+            }
+
+            item(key = "journal_intelligence") {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.journal_dose_math_title),
+                        subtitle = stringResource(R.string.journal_dose_calculator_desc),
+                        checked = journalDoseCalculatorEnabled,
+                        onCheckedChange = { viewModel.setJournalDoseCalculatorEnabled(it) },
+                        icon = Icons.Default.Calculate,
+                        iconTint = MaterialTheme.colorScheme.primary,
+                        position = CardPosition.TOP,
+                        enabled = journalEnabled
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.historyname))
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.journal_food_macros_title),
+                        subtitle = stringResource(R.string.journal_food_macros_desc),
+                        checked = journalFoodMacrosEnabled,
+                        onCheckedChange = { viewModel.setJournalFoodMacrosEnabled(it) },
+                        icon = Icons.Default.Restaurant,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.MIDDLE,
+                        enabled = journalEnabled
+                    )
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.journal_aaps_import_title),
+                        subtitle = stringResource(R.string.journal_aaps_import_desc),
+                        checked = aapsJournalImportEnabled,
+                        onCheckedChange = { viewModel.setAapsJournalImportEnabled(it) },
+                        icon = Icons.Default.Restore,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        position = CardPosition.BOTTOM,
+                        enabled = journalEnabled
+                    )
                 }
             }
 
-            item(key = "dose_calculator") {
-                JournalCompactSwitchRow(
-                    title = stringResource(R.string.journal_dose_math_title),
-                    subtitle = stringResource(R.string.journal_dose_calculator_desc),
-                    checked = journalDoseCalculatorEnabled,
-                    onCheckedChange = { viewModel.setJournalDoseCalculatorEnabled(it) },
-                    icon = Icons.Default.Calculate
-                )
-            }
-
-            item(key = "food_macros") {
-                JournalCompactSwitchRow(
-                    title = stringResource(R.string.journal_food_macros_title),
-                    subtitle = stringResource(R.string.journal_food_macros_desc),
-                    checked = journalFoodMacrosEnabled,
-                    onCheckedChange = { viewModel.setJournalFoodMacrosEnabled(it) },
-                    icon = Icons.Default.Restaurant
-                )
-            }
-
-            item(key = "import_health_activity") {
-                FilledTonalButton(
-                    onClick = { viewModel.importHealthConnectActivity(daysBack = 14) },
-                    enabled = journalEnabled,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DirectionsRun,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+            item(key = "journal_libraries") {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    SettingsItem(
+                        title = stringResource(R.string.journal_food_library),
+                        subtitle = stringResource(
+                            R.string.journal_food_library_count,
+                            if (journalFoodLibraryEnabled) activeFoods.size else 0,
+                            allFoods.size
+                        ),
+                        showArrow = true,
+                        onClick = { navController.navigate("settings/journal/foods") },
+                        icon = Icons.Default.Restaurant,
+                        iconTint = MaterialTheme.colorScheme.secondary,
+                        position = CardPosition.TOP
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.journal_import_health_activity))
+                    SettingsItem(
+                        title = stringResource(R.string.journal_insulin_library),
+                        subtitle = stringResource(R.string.journal_insulin_library_count, activePresets.size, allPresets.size),
+                        showArrow = true,
+                        onClick = { navController.navigate("settings/journal/insulin") },
+                        icon = Icons.Default.Vaccines,
+                        iconTint = MaterialTheme.colorScheme.tertiary,
+                        position = CardPosition.BOTTOM
+                    )
                 }
             }
+        }
+    }
+}
 
-            item(key = "food_library_nav") {
-                JournalLibraryNavRow(
-                    title = stringResource(R.string.journal_food_library),
-                    subtitle = stringResource(
-                        R.string.journal_food_library_count,
-                        activeFoods.size,
-                        allFoods.size
-                    ),
-                    icon = Icons.Default.Restaurant,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    onClick = { navController.navigate("settings/journal/foods") }
+@Composable
+private fun JournalActionRow(
+    journalEnabled: Boolean,
+    onHistoryClick: () -> Unit,
+    onImportActivityClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        JournalActionButton(
+            text = stringResource(R.string.historyname),
+            icon = Icons.Default.History,
+            enabled = true,
+            modifier = Modifier.weight(1f),
+            onClick = onHistoryClick
+        )
+        JournalActionButton(
+            text = stringResource(R.string.journal_import_health_activity),
+            icon = Icons.Default.DirectionsRun,
+            enabled = journalEnabled,
+            modifier = Modifier.weight(1f),
+            onClick = onImportActivityClick
+        )
+    }
+}
+
+@Composable
+private fun JournalActionButton(
+    text: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(52.dp),
+        shape = RoundedCornerShape(22.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(19.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun JournalIntelligenceCard(
+    journalEnabled: Boolean,
+    doseCalculatorEnabled: Boolean,
+    onDoseCalculatorChange: (Boolean) -> Unit,
+    foodMacrosEnabled: Boolean,
+    onFoodMacrosChange: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (journalEnabled) 1f else 0.58f),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(30.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            JournalIntelligenceRow(
+                title = stringResource(R.string.journal_dose_math_title),
+                subtitle = stringResource(R.string.journal_dose_calculator_desc),
+                icon = Icons.Default.Calculate,
+                iconTint = MaterialTheme.colorScheme.primary,
+                checked = doseCalculatorEnabled,
+                enabled = journalEnabled,
+                onCheckedChange = onDoseCalculatorChange
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 58.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f)
+            )
+            JournalIntelligenceRow(
+                title = stringResource(R.string.journal_food_macros_title),
+                subtitle = stringResource(R.string.journal_food_macros_desc),
+                icon = Icons.Default.Restaurant,
+                iconTint = MaterialTheme.colorScheme.secondary,
+                checked = foodMacrosEnabled,
+                enabled = journalEnabled,
+                onCheckedChange = onFoodMacrosChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun JournalIntelligenceRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconTint: Color,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.52f)
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Surface(
+            modifier = Modifier.size(44.dp),
+            color = iconTint.copy(alpha = if (checked) 0.22f else 0.10f),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (checked) iconTint else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
                 )
             }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        StyledSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled
+        )
+    }
+}
 
-            item(key = "insulin_library_nav") {
-                JournalLibraryNavRow(
-                    title = stringResource(R.string.journal_insulin_library),
-                    subtitle = stringResource(
-                        R.string.journal_insulin_library_count,
-                        activePresets.size,
-                        allPresets.size
-                    ),
-                    icon = Icons.Default.Vaccines,
-                    iconTint = MaterialTheme.colorScheme.tertiary,
-                    onClick = { navController.navigate("settings/journal/insulin") }
-                )
+@Composable
+private fun JournalLibraryHub(
+    activeFoods: Int,
+    totalFoods: Int,
+    activeInsulin: Int,
+    totalInsulin: Int,
+    onFoodClick: () -> Unit,
+    onInsulinClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        JournalLibraryTile(
+            title = stringResource(R.string.journal_food_library),
+            subtitle = stringResource(R.string.journal_food_library_count, activeFoods, totalFoods),
+            icon = Icons.Default.Restaurant,
+            tint = MaterialTheme.colorScheme.secondary,
+            shape = RoundedCornerShape(topStart = 34.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 28.dp),
+            modifier = Modifier.weight(1f),
+            onClick = onFoodClick
+        )
+        JournalLibraryTile(
+            title = stringResource(R.string.journal_insulin_library),
+            subtitle = stringResource(R.string.journal_insulin_library_count, activeInsulin, totalInsulin),
+            icon = Icons.Default.Vaccines,
+            tint = MaterialTheme.colorScheme.tertiary,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 34.dp, bottomStart = 28.dp, bottomEnd = 20.dp),
+            modifier = Modifier.weight(1f),
+            onClick = onInsulinClick
+        )
+    }
+}
+
+@Composable
+private fun JournalLibraryTile(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    tint: Color,
+    shape: RoundedCornerShape,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 132.dp),
+        color = tint.copy(alpha = 0.13f),
+        shape = shape
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Surface(
+                modifier = Modifier.size(48.dp),
+                color = tint.copy(alpha = 0.20f),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = tint,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -275,8 +520,19 @@ fun JournalFoodLibraryScreen(
     viewModel: DashboardViewModel
 ) {
     val allFoods by viewModel.journalFoods.collectAsState()
-    val activeFoods = remember(allFoods) { allFoods.filter { !it.isArchived } }
-    val archivedFoods = remember(allFoods) { allFoods.filter { it.isArchived } }
+    val foodMacrosEnabled by viewModel.journalFoodMacrosEnabled.collectAsState()
+    val foodLibraryEnabled by viewModel.journalFoodLibraryEnabled.collectAsState()
+    var query by rememberSaveable { mutableStateOf("") }
+    val activeFoods = remember(allFoods, query) {
+        allFoods
+            .filter { !it.isArchived }
+            .filterFoodQuery(query)
+    }
+    val archivedFoods = remember(allFoods, query) {
+        allFoods
+            .filter { it.isArchived }
+            .filterFoodQuery(query)
+    }
     var editingFood by remember { mutableStateOf<JournalFood?>(null) }
     var creatingFood by remember { mutableStateOf(false) }
 
@@ -303,13 +559,39 @@ fun JournalFoodLibraryScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            if (activeFoods.isNotEmpty()) {
+            item(key = "food_library_enabled") {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.journal_food_library),
+                    subtitle = stringResource(R.string.journal_food_choose_desc),
+                    checked = foodLibraryEnabled,
+                    onCheckedChange = { viewModel.setJournalFoodLibraryEnabled(it) },
+                    icon = Icons.Default.Restaurant,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    position = CardPosition.SINGLE
+                )
+            }
+
+            item(key = "food_search") {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = foodLibraryEnabled,
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    label = { Text(stringResource(R.string.journal_food_search)) },
+                    shape = RoundedCornerShape(22.dp)
+                )
+            }
+
+            if (foodLibraryEnabled && activeFoods.isNotEmpty()) {
                 item(key = "food_group") {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         activeFoods.forEachIndexed { index, food ->
                             JournalFoodRow(
                                 food = food,
                                 position = cardPosition(index, activeFoods.size),
+                                foodMacrosEnabled = foodMacrosEnabled,
                                 onClick = { editingFood = food }
                             )
                         }
@@ -317,14 +599,16 @@ fun JournalFoodLibraryScreen(
                 }
             }
 
-            item(key = "add_food_button") {
+            if (foodLibraryEnabled) {
+                item(key = "add_food_button") {
                 AddCustomAlertButton(
                     text = stringResource(R.string.journal_add_food),
                     onClick = { creatingFood = true }
                 )
+                }
             }
 
-            if (archivedFoods.isNotEmpty()) {
+            if (foodLibraryEnabled && archivedFoods.isNotEmpty()) {
                 item(key = "disabled_food_label") {
                     SectionLabel(
                         text = stringResource(R.string.journal_food_disabled_library),
@@ -337,6 +621,7 @@ fun JournalFoodLibraryScreen(
                             JournalFoodRow(
                                 food = food,
                                 position = cardPosition(index, archivedFoods.size),
+                                foodMacrosEnabled = foodMacrosEnabled,
                                 onClick = { editingFood = food }
                             )
                         }
@@ -349,6 +634,7 @@ fun JournalFoodLibraryScreen(
     if (creatingFood) {
         JournalFoodSheet(
             food = null,
+            foodMacrosEnabled = foodMacrosEnabled,
             onDismiss = { creatingFood = false },
             onSave = {
                 viewModel.saveJournalFood(it)
@@ -361,6 +647,7 @@ fun JournalFoodLibraryScreen(
     editingFood?.let { food ->
         JournalFoodSheet(
             food = food,
+            foodMacrosEnabled = foodMacrosEnabled,
             onDismiss = { editingFood = null },
             onSave = {
                 viewModel.saveJournalFood(it)
@@ -488,59 +775,6 @@ fun JournalInsulinLibraryScreen(
 }
 
 @Composable
-private fun JournalLibraryNavRow(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    iconTint: Color,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(28.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(48.dp),
-                color = iconTint.copy(alpha = 0.16f),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconTint,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun JournalPresetRow(
     preset: JournalInsulinPreset,
     position: CardPosition,
@@ -624,6 +858,7 @@ private fun JournalPresetRow(
 private fun JournalFoodRow(
     food: JournalFood,
     position: CardPosition,
+    foodMacrosEnabled: Boolean,
     onClick: () -> Unit
 ) {
     val isDisabled = food.isArchived
@@ -678,27 +913,64 @@ private fun JournalFoodRow(
                         )
                     }
                 }
-                Text(
-                    text = stringResource(
-                        R.string.journal_food_macro_summary,
-                        formatFoodNumber(food.carbsGrams),
-                        formatFoodNumber(food.proteinGrams ?: 0f),
-                        formatFoodNumber(food.fatGrams ?: 0f),
-                        food.absorptionMinutes
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 6.dp)
+                ) {
+                    FoodMetricChip(
+                        label = stringResource(R.string.carbo).trimTrailingLabel(),
+                        value = "${formatFoodNumber(food.carbsGrams)} g",
+                        tint = tint
+                    )
+                    if (foodMacrosEnabled) {
+                        FoodMetricChip(
+                            label = stringResource(R.string.journal_food_protein),
+                            value = "${formatFoodNumber(food.proteinGrams ?: 0f)} g",
+                            tint = tint
+                        )
+                        FoodMetricChip(
+                            label = stringResource(R.string.journal_food_fat),
+                            value = "${formatFoodNumber(food.fatGrams ?: 0f)} g",
+                            tint = tint
+                        )
+                    }
+                    FoodMetricChip(
+                        label = "",
+                        value = stringResource(R.string.minutes_short_format, food.absorptionMinutes),
+                        tint = tint
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
+private fun FoodMetricChip(
+    label: String,
+    value: String,
+    tint: Color
+) {
+    Surface(
+        color = tint.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Text(
+            text = if (label.isBlank()) value else "$label $value",
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
 private fun JournalFoodSheet(
     food: JournalFood?,
+    foodMacrosEnabled: Boolean,
     onDismiss: () -> Unit,
     onSave: (JournalFoodInput) -> Unit,
     onDelete: (() -> Unit)?
@@ -823,31 +1095,24 @@ private fun JournalFoodSheet(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         suffix = { Text("g") }
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
+                    if (foodMacrosEnabled) {
+                        JournalFoodNumberStepper(
                             value = draft.proteinText,
                             onValueChange = { draft = draft.copy(proteinText = it) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .widthIn(min = 0.dp),
-                            label = { Text(stringResource(R.string.journal_food_protein)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            suffix = { Text("g") }
+                            onStep = { delta ->
+                                draft = draft.copy(proteinText = adjustFoodNumberDraft(draft.proteinText, delta, step = 5f))
+                            },
+                            label = stringResource(R.string.journal_food_protein),
+                            suffix = "g"
                         )
-                        OutlinedTextField(
+                        JournalFoodNumberStepper(
                             value = draft.fatText,
                             onValueChange = { draft = draft.copy(fatText = it) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .widthIn(min = 0.dp),
-                            label = { Text(stringResource(R.string.journal_food_fat)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            suffix = { Text("g") }
+                            onStep = { delta ->
+                                draft = draft.copy(fatText = adjustFoodNumberDraft(draft.fatText, delta, step = 5f))
+                            },
+                            label = stringResource(R.string.journal_food_fat),
+                            suffix = "g"
                         )
                     }
                     OutlinedTextField(
@@ -896,6 +1161,50 @@ private fun JournalFoodSheet(
                 showColorDialog = false
             }
         )
+    }
+}
+
+@Composable
+private fun JournalFoodNumberStepper(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onStep: (Int) -> Unit,
+    label: String,
+    suffix: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        FilledTonalIconButton(
+            onClick = { onStep(-1) },
+            modifier = Modifier.size(48.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Remove,
+                contentDescription = null
+            )
+        }
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.weight(1f),
+            label = { Text(label) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            suffix = { Text(suffix) }
+        )
+        FilledTonalIconButton(
+            onClick = { onStep(1) },
+            modifier = Modifier.size(48.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null
+            )
+        }
     }
 }
 
@@ -2202,12 +2511,24 @@ private fun buildFoodInput(draft: JournalFoodDraft): JournalFoodInput? {
     )
 }
 
+private fun List<JournalFood>.filterFoodQuery(query: String): List<JournalFood> {
+    val needle = query.trim()
+    return if (needle.isBlank()) this else filter { food ->
+        food.displayName.contains(needle, ignoreCase = true)
+    }
+}
+
 private fun formatFoodNumber(value: Float): String {
     return if (kotlin.math.abs(value - value.roundToInt()) < 0.001f) {
         value.roundToInt().toString()
     } else {
         String.format(java.util.Locale.getDefault(), "%.1f", value).trimEnd('0').trimEnd('.', ',')
     }
+}
+
+private fun adjustFoodNumberDraft(value: String, direction: Int, step: Float): String {
+    val current = value.parseFoodFloatOrNull() ?: 0f
+    return formatFoodNumber((current + direction * step).coerceAtLeast(0f))
 }
 
 private fun String.parseFoodFloatOrNull(): Float? {

@@ -15,6 +15,9 @@ interface JournalDao {
     @Query("SELECT * FROM journal_entries WHERE id = :id LIMIT 1")
     suspend fun getEntryById(id: Long): JournalEntryEntity?
 
+    @Query("SELECT * FROM journal_entries WHERE sourceRecordId = :sourceRecordId LIMIT 1")
+    suspend fun getEntryBySourceRecordId(sourceRecordId: String): JournalEntryEntity?
+
     @Query("SELECT * FROM journal_entries ORDER BY timestamp ASC, id ASC")
     suspend fun getEntries(): List<JournalEntryEntity>
 
@@ -32,6 +35,9 @@ interface JournalDao {
 
     @Query("DELETE FROM journal_entries WHERE id = :id")
     suspend fun deleteEntryById(id: Long)
+
+    @Query("DELETE FROM journal_entries WHERE sourceRecordId IN (:sourceRecordIds)")
+    suspend fun deleteEntriesBySourceRecordIds(sourceRecordIds: List<String>)
 
     @Query("DELETE FROM journal_entries")
     suspend fun deleteAllEntries()

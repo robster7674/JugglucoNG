@@ -76,6 +76,17 @@
                 android:resource="@xml/expressive_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".receivers.AapsJournalReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="info.nightscout.client.NEW_TREATMENT" />
+                <action android:name="info.nightscout.client.CHANGED_TREATMENT" />
+                <action android:name="info.nightscout.client.REMOVED_TREATMENT" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".MainActivity"
             android:allowEmbedded="true"

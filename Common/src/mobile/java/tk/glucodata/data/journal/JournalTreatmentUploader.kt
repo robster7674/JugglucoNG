@@ -66,6 +66,7 @@ object JournalTreatmentUploader {
         val pending = dao.getEntriesNeedingNightscoutUpload(sinceMillis)
         for (entry in pending) {
             if (!isSendableType(entry.entryType)) continue
+            if (entry.source == JournalEntrySource.AAPS.storageValue) continue
 
             val remoteId = entry.nsRemoteId ?: (ID_PREFIX + entry.id.toString(16))
             // Re-upload: drop the old copy first (mirrors legacy delete-then-PUT/POST).

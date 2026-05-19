@@ -31,7 +31,8 @@ enum class JournalIntensity(val storageValue: String) {
 
 enum class JournalEntrySource(val storageValue: String) {
     MANUAL("manual"),
-    HEALTH_CONNECT("health_connect");
+    HEALTH_CONNECT("health_connect"),
+    AAPS("aaps");
 
     companion object {
         fun fromStorage(value: String?): JournalEntrySource {
