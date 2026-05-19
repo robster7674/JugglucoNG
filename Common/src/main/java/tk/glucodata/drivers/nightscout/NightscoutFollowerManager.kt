@@ -145,6 +145,11 @@ class NightscoutFollowerManager(
         scheduleRefresh(0L)
     }
 
+    override fun reconnect(now: Long): Boolean {
+        if (!stop && phase == Phase.IDLE) connectDevice(0)
+        return true
+    }
+
     override fun terminateManagedSensor(wipeData: Boolean) {
         stop = true
         handler.removeCallbacksAndMessages(null)
