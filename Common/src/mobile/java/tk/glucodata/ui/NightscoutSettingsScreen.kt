@@ -57,6 +57,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -95,6 +97,8 @@ private sealed class TestState {
 fun NightscoutSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     var url by rememberSaveable { mutableStateOf(Natives.getnightuploadurl() ?: "") }
     var secret by rememberSaveable { mutableStateOf(Natives.getnightuploadsecret() ?: "") }
@@ -289,7 +293,11 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
                             visualTransformation = if (showSecret) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = { persistSettings() }),
+                            keyboardActions = KeyboardActions(onDone = {
+                                persistSettings()
+                                keyboardController?.hide()
+                                navController.popBackStack()
+                            }),
                             trailingIcon = {
                                 IconButton(onClick = { showSecret = !showSecret }) {
                                     Icon(
@@ -326,6 +334,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             SegmentedButton(
                                 selected = mode == NightscoutMode.OFF,
                                 onClick = {
+                                    focusManager.clearFocus()
                                     if (mode == NightscoutMode.FOLLOW) NightscoutFollowerRegistry.disableFollowerSensor(context)
                                     mode = NightscoutMode.OFF
                                     persistSettings()
@@ -336,6 +345,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             SegmentedButton(
                                 selected = mode == NightscoutMode.UPLOAD,
                                 onClick = {
+                                    focusManager.clearFocus()
                                     if (!requireUrl()) return@SegmentedButton
                                     if (mode == NightscoutMode.FOLLOW) NightscoutFollowerRegistry.disableFollowerSensor(context)
                                     mode = NightscoutMode.UPLOAD
@@ -352,6 +362,7 @@ fun NightscoutSettingsScreen(navController: NavController) {
                             SegmentedButton(
                                 selected = mode == NightscoutMode.FOLLOW,
                                 onClick = {
+                                    focusManager.clearFocus()
                                     if (!requireUrl()) return@SegmentedButton
                                     mode = NightscoutMode.FOLLOW
                                     persistSettings()
