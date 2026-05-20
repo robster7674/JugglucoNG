@@ -19,6 +19,7 @@ import tk.glucodata.drivers.ManagedBluetoothSensorDriver
 import tk.glucodata.drivers.ManagedSensorCurrentSnapshot
 import tk.glucodata.drivers.ManagedSensorUiFamily
 import tk.glucodata.drivers.ManagedSensorUiSnapshot
+import tk.glucodata.drivers.ManagedSensorViewModeStore
 import tk.glucodata.drivers.VirtualGlucoseSensorBridge
 
 class ApiGlucoseSourceManager(
@@ -57,14 +58,23 @@ class ApiGlucoseSourceManager(
     @Volatile private var lastImportedHistoryTailMs: Long = 0L
     @Volatile private var latestReadingTimeMs: Long = 0L
     @Volatile private var latestReadingMgdl: Float = Float.NaN
+    @Volatile private var latestAutoMgdl: Float = Float.NaN
+    @Volatile private var latestCalibratedMgdl: Float = Float.NaN
     @Volatile private var latestRawMgdl: Float = Float.NaN
     @Volatile private var latestRateMgdlPerMin: Float = 0f
+    @Volatile private var viewModeValue: Int = ManagedSensorViewModeStore.read(Applic.app, serial, 0)
 
     init {
         mActiveDeviceAddress = url
     }
 
-    override var viewMode: Int = 0
+    override var viewMode: Int
+        get() = viewModeValue
+        set(value) {
+            val normalized = ManagedSensorViewModeStore.sanitize(value)
+            viewModeValue = normalized
+            ManagedSensorViewModeStore.write(Applic.app, SerialNumber, normalized)
+        }
 
     override fun canConnectWithoutDataptr(): Boolean = true
 
@@ -89,11 +99,18 @@ class ApiGlucoseSourceManager(
 
     override fun getManagedCurrentSnapshot(maxAgeMillis: Long): ManagedSensorCurrentSnapshot? {
         val timestampMs = latestReadingTimeMs
-        val glucoseMgdl = latestReadingMgdl
+        val glucoseMgdl = latestAutoMgdl
+            .takeIf { it.isFinite() && it > 0f }
+            ?: latestReadingMgdl
         val rawMgdl = latestRawMgdl
         if (timestampMs <= 0L || !glucoseMgdl.isFinite() || glucoseMgdl <= 0f) return null
         if (kotlin.math.abs(System.currentTimeMillis() - timestampMs) > maxAgeMillis) return null
         val glucoseDisplay = if (Applic.unit == 1) glucoseMgdl / MGDL_PER_MMOLL else glucoseMgdl
+        val calibratedDisplay = if (latestCalibratedMgdl.isFinite() && latestCalibratedMgdl > 0f) {
+            if (Applic.unit == 1) latestCalibratedMgdl / MGDL_PER_MMOLL else latestCalibratedMgdl
+        } else {
+            Float.NaN
+        }
         val rawDisplay = if (rawMgdl.isFinite() && rawMgdl > 0f) {
             if (Applic.unit == 1) rawMgdl / MGDL_PER_MMOLL else rawMgdl
         } else {
@@ -104,6 +121,7 @@ class ApiGlucoseSourceManager(
             timeMillis = timestampMs,
             glucoseValue = glucoseDisplay,
             rawGlucoseValue = rawDisplay,
+            calibratedGlucoseValue = calibratedDisplay,
             rate = rateDisplay,
             sensorGen = SENSOR_GEN,
         )
@@ -127,12 +145,14 @@ class ApiGlucoseSourceManager(
             isActive = SensorIdentity.matches(activeSensorId, SerialNumber),
             dataptr = 0L,
             viewMode = viewMode,
-            supportsDisplayModes = false,
+            supportsDisplayModes = supportsDisplayModes(),
             supportsManualCalibration = false,
             supportsHardwareReset = false,
             isVendorConnected = phase == Phase.FOLLOWING,
             vendorModel = localizedString(R.string.api_source_title, "API source"),
         )
+
+    override fun supportsDisplayModes(): Boolean = true
 
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
@@ -247,6 +267,8 @@ class ApiGlucoseSourceManager(
         }
         latestReadingTimeMs = latest.timestampMs
         latestReadingMgdl = latest.glucoseMgdl
+        latestAutoMgdl = latest.storageGlucoseMgdl
+        latestCalibratedMgdl = latest.calibratedMgdl
         latestRawMgdl = latest.rawMgdl
         latestRateMgdlPerMin = rate
         VirtualGlucoseSensorBridge.publishCurrent(
@@ -258,10 +280,11 @@ class ApiGlucoseSourceManager(
     }
 
     private fun fetchReadings(): List<VirtualGlucoseSensorBridge.Reading> {
-        if (ApiGlucoseSourceRegistry.normalizePreset(preset) == ApiGlucoseSourceRegistry.PRESET_VK_DIRECT) {
-            return fetchVkDirectReadings()
+        return when (ApiGlucoseSourceRegistry.normalizePreset(preset)) {
+            ApiGlucoseSourceRegistry.PRESET_TELEGRAM_BOT -> fetchTelegramReadings()
+            ApiGlucoseSourceRegistry.PRESET_VK_DIRECT -> fetchVkDirectReadings()
+            else -> fetchHttpReadings()
         }
-        return fetchHttpReadings()
     }
 
     private fun fetchHttpReadings(): List<VirtualGlucoseSensorBridge.Reading> {
@@ -334,11 +357,86 @@ class ApiGlucoseSourceManager(
             }
             val cutoff = System.currentTimeMillis() - 24L * 60L * 60L * 1000L
             return messages.asSequence()
-                .mapNotNull(::parseGlucoWatchMessage)
+                .flatMap { parseMessageText(it).asSequence() }
                 .filter { it.timestampMs >= cutoff }
                 .distinctBy { it.timestampMs }
                 .sortedBy { it.timestampMs }
                 .toList()
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun fetchTelegramReadings(): List<VirtualGlucoseSensorBridge.Reading> {
+        val context = Applic.app
+        val offset = context?.let(ApiGlucoseSourceRegistry::loadTelegramUpdateOffset) ?: 0L
+        val fields = linkedMapOf(
+            "limit" to "100",
+            "timeout" to "0",
+            "allowed_updates" to JSONArray()
+                .put("message")
+                .put("edited_message")
+                .put("channel_post")
+                .put("edited_channel_post")
+                .toString()
+        )
+        if (offset > 0L) {
+            fields["offset"] = offset.toString()
+        }
+        val telegramUrl = ApiGlucoseSourceRegistry.normalizeUrl(
+            url.replace("{token}", token.trim().removePrefix("bot"))
+        )
+        val connection = (URL(telegramUrl).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15_000
+            readTimeout = 30_000
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("User-Agent", "JugglucoNG API source")
+            applyHeaders(headers)
+        }
+        try {
+            connection.outputStream.use { it.write(formEncode(fields).toByteArray(Charsets.UTF_8)) }
+            val code = connection.responseCode
+            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                .orEmpty()
+            if (code !in 200..299) {
+                throw IllegalStateException("Telegram source HTTP $code: ${body.take(160)}")
+            }
+            val root = JSONObject(body)
+            if (!root.optBoolean("ok", false)) {
+                throw IllegalStateException(
+                    root.optString("description", "Telegram Bot API error")
+                        .ifBlank { "Telegram Bot API error" }
+                )
+            }
+            val updates = root.optJSONArray("result") ?: JSONArray()
+            val allowedPeers = parseTelegramAllowedPeers(peerId)
+            val readings = ArrayList<VirtualGlucoseSensorBridge.Reading>()
+            var nextOffset = offset
+            for (index in 0 until updates.length()) {
+                val update = updates.optJSONObject(index) ?: continue
+                val updateId = update.optLong("update_id", 0L)
+                if (updateId >= nextOffset) {
+                    nextOffset = updateId + 1L
+                }
+                val message = telegramMessage(update) ?: continue
+                if (!isTelegramMessageAllowed(message, allowedPeers)) continue
+                val text = message.optString("text", "").ifBlank {
+                    message.optString("caption", "")
+                }
+                if (text.isNotBlank()) {
+                    readings += parseMessageText(text)
+                }
+            }
+            if (context != null && nextOffset > offset) {
+                ApiGlucoseSourceRegistry.saveTelegramUpdateOffset(context, nextOffset)
+            }
+            return readings.distinctBy { it.timestampMs }
+                .sortedBy { it.timestampMs }
         } finally {
             connection.disconnect()
         }
@@ -376,6 +474,17 @@ class ApiGlucoseSourceManager(
         return objects.mapNotNull(::parseJsonReading)
     }
 
+    private fun parseMessageText(message: String): List<VirtualGlucoseSensorBridge.Reading> {
+        val trimmed = message.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            val jsonReadings = runCatching { parseOutboundJson(trimmed) }
+                .getOrDefault(emptyList())
+            if (jsonReadings.isNotEmpty()) return jsonReadings
+        }
+        return parseGlucoWatchMessage(trimmed)?.let(::listOf).orEmpty()
+    }
+
     private fun jsonArrayObjects(array: JSONArray): List<JSONObject> {
         val objects = ArrayList<JSONObject>(array.length())
         for (index in 0 until array.length()) {
@@ -386,14 +495,51 @@ class ApiGlucoseSourceManager(
 
     private fun parseJsonReading(entry: JSONObject): VirtualGlucoseSensorBridge.Reading? {
         importJournal(entry)
-        val mgdl = firstFinite(
-            entry.optDouble("glucose_mgdl", Double.NaN),
-            entry.optDouble("sgv", Double.NaN),
-            entry.optDouble("mgdl", Double.NaN),
-        ) ?: firstFinite(
-            entry.optDouble("glucose_mmol", Double.NaN),
-            entry.optDouble("mmol", Double.NaN),
+        val primaryMgdl = firstFiniteField(
+            entry,
+            "glucose_mgdl",
+            "sgv",
+            "mgdl",
+            "calibrated_glucose_mgdl",
+            "calibrated_mgdl",
+            "calibratedMgdl"
+        ) ?: firstFiniteField(
+            entry,
+            "glucose_mmol",
+            "mmol",
+            "calibrated_glucose_mmol",
+            "calibrated_mmol"
         )?.let { it * MGDL_PER_MMOLL } ?: return null
+
+        val autoMgdl = firstFiniteField(
+            entry,
+            "auto_glucose_mgdl",
+            "auto_mgdl",
+            "autoMgdl",
+            "uncalibrated_glucose_mgdl",
+            "uncalibrated_mgdl"
+        ) ?: firstFiniteField(
+            entry,
+            "auto_glucose_mmol",
+            "auto_mmol",
+            "uncalibrated_glucose_mmol",
+            "uncalibrated_mmol"
+        )?.let { it * MGDL_PER_MMOLL } ?: Double.NaN
+
+        val calibratedMgdl = if (autoMgdl.isFinite() && autoMgdl > 0.0) {
+            primaryMgdl
+        } else {
+            firstFiniteField(
+                entry,
+                "calibrated_glucose_mgdl",
+                "calibrated_mgdl",
+                "calibratedMgdl"
+            ) ?: firstFiniteField(
+                entry,
+                "calibrated_glucose_mmol",
+                "calibrated_mmol"
+            )?.let { it * MGDL_PER_MMOLL } ?: Double.NaN
+        }
 
         val timestamp = normalizeTimestamp(
             firstLong(
@@ -409,26 +555,20 @@ class ApiGlucoseSourceManager(
                 ?.let { (it * MGDL_PER_MMOLL).toFloat() }
             ?: Float.NaN
 
-        val rawMgdl = firstFinite(
-            entry.optDouble("raw_value", Double.NaN),
-            entry.optDouble("raw_glucose_mgdl", Double.NaN),
-            entry.optDouble("raw_mgdl", Double.NaN),
-            entry.optDouble("rawMgdl", Double.NaN),
-        ) ?: firstFinite(
-            entry.optDouble("raw_glucose_mmol", Double.NaN),
-            entry.optDouble("raw_mmol", Double.NaN),
-        )?.let { it * MGDL_PER_MMOLL } ?: Double.NaN
+        val rawMgdl = parseJsonRawMgdl(entry) ?: Double.NaN
 
         return VirtualGlucoseSensorBridge.Reading(
             timestampMs = timestamp,
-            glucoseMgdl = mgdl.toFloat(),
+            glucoseMgdl = primaryMgdl.toFloat(),
+            autoMgdl = autoMgdl.toFloat(),
+            calibratedMgdl = calibratedMgdl.toFloat(),
             rawMgdl = rawMgdl.toFloat(),
             rate = rate,
         )
     }
 
     private fun parseGlucoWatchText(body: String): List<VirtualGlucoseSensorBridge.Reading> =
-        extractMessageTexts(body).mapNotNull(::parseGlucoWatchMessage)
+        extractMessageTexts(body).flatMap(::parseMessageText)
 
     private fun extractMessageTexts(body: String): List<String> {
         val trimmed = body.trim()
@@ -441,7 +581,15 @@ class ApiGlucoseSourceManager(
             }
         }.getOrElse {
             trimmed.lineSequence().toList()
-        }.filter { it.contains("GV:") || it.contains("MGDL:") }
+        }.filter { text ->
+            val normalized = text.trim()
+            normalized.isNotEmpty() && (
+                normalized.startsWith("{") ||
+                    normalized.startsWith("[") ||
+                    normalized.contains("GV:") ||
+                    normalized.contains("MGDL:")
+                )
+        }
     }
 
     private fun collectJsonMessages(value: Any?): List<String> {
@@ -479,26 +627,115 @@ class ApiGlucoseSourceManager(
             }
             .toMap()
 
-        val timestamp = normalizeTimestamp(fields["TS"]?.toLongOrNull() ?: 0L) ?: return null
+        val timestamp = normalizeTimestamp(
+            fields["TS"]?.toLongOrNull()
+                ?: fields["TIMESTAMP"]?.toLongOrNull()
+                ?: 0L
+        ) ?: return null
         val glucoseMgdl = fields["MGDL"]?.toDoubleOrNull()
+            ?: fields["GLUCOSE_MGDL"]?.toDoubleOrNull()
             ?: fields["GV"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
+            ?: fields["MMOL"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
             ?: return null
         if (!glucoseMgdl.isFinite() || glucoseMgdl <= 0.0) return null
-        val rate = fields["RT"]?.toDoubleOrNull()
-            ?.let { (it * MGDL_PER_MMOLL).toFloat() }
-            ?: Float.NaN
+        val autoMgdl = fields["AUTO_MGDL"]?.toDoubleOrNull()
+            ?: fields["AMGDL"]?.toDoubleOrNull()
+            ?: fields["AUTO_VALUE_MGDL"]?.toDoubleOrNull()
+            ?: fields["AUTO_MMOL"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
+            ?: fields["AMMOL"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
+            ?: fields["AUTO"]?.toDoubleOrNull()?.let(::inferCompactGlucoseMgdl)
+            ?: fields["AUTO_VALUE"]?.toDoubleOrNull()?.let(::inferCompactGlucoseMgdl)
+            ?: Double.NaN
+        val calibratedMgdl = if (autoMgdl.isFinite() && autoMgdl > 0.0) glucoseMgdl else Double.NaN
+        val rate = fields["RATE_MGDL"]?.toDoubleOrNull()
+            ?: fields["RTMGDL"]?.toDoubleOrNull()
+            ?: fields["RATE_MGDL_PER_MIN"]?.toDoubleOrNull()
+            ?: fields["RT"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
+            ?: fields["RATE_MMOL"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
+            ?: fields["RATE_MMOL_PER_MIN"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
         val rawMgdl = fields["RMGDL"]?.toDoubleOrNull()
             ?: fields["RAW_MGDL"]?.toDoubleOrNull()
-            ?: fields["RAW"]?.toDoubleOrNull()
+            ?: fields["RAW_GLUC_MGDL"]?.toDoubleOrNull()
             ?: fields["RMMOL"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
+            ?: fields["RAW_MMOL"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
+            ?: fields["RAW"]?.toDoubleOrNull()?.let(::inferCompactGlucoseMgdl)
             ?: Double.NaN
         return VirtualGlucoseSensorBridge.Reading(
             timestampMs = timestamp,
             glucoseMgdl = glucoseMgdl.toFloat(),
+            autoMgdl = autoMgdl.toFloat(),
+            calibratedMgdl = calibratedMgdl.toFloat(),
             rawMgdl = rawMgdl.toFloat(),
-            rate = rate,
+            rate = rate?.toFloat() ?: Float.NaN,
         )
     }
+
+    private fun parseTelegramAllowedPeers(raw: String): Set<String> =
+        raw.split(',', ';', '\n')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .map { it.lowercase(Locale.US) }
+            .toSet()
+
+    private fun telegramMessage(update: JSONObject): JSONObject? =
+        listOf("message", "edited_message", "channel_post", "edited_channel_post")
+            .firstNotNullOfOrNull { key -> update.optJSONObject(key) }
+
+    private fun isTelegramMessageAllowed(message: JSONObject, allowedPeers: Set<String>): Boolean {
+        if (allowedPeers.isEmpty()) return false
+        if ("*" in allowedPeers) return true
+        val chat = message.optJSONObject("chat") ?: return false
+        val candidates = ArrayList<String>(4)
+        chat.opt("id")?.toString()?.takeIf { it.isNotBlank() }?.let(candidates::add)
+        chat.optString("username", "")
+            .takeIf { it.isNotBlank() }
+            ?.lowercase(Locale.US)
+            ?.let { username ->
+                candidates += username
+                candidates += "@$username"
+            }
+        message.optJSONObject("from")
+            ?.optString("username", "")
+            ?.takeIf { it.isNotBlank() }
+            ?.lowercase(Locale.US)
+            ?.let { username ->
+                candidates += username
+                candidates += "@$username"
+            }
+        return candidates.any { it.lowercase(Locale.US) in allowedPeers }
+    }
+
+    private fun parseJsonRawMgdl(entry: JSONObject): Double? {
+        val explicit = firstFiniteField(
+            entry,
+            "raw_glucose_mgdl",
+            "raw_mgdl",
+            "rawMgdl",
+            "raw_gluc_mgdl"
+        ) ?: firstFiniteField(
+            entry,
+            "raw_glucose_mmol",
+            "raw_mmol",
+            "rawMmol"
+        )?.let { it * MGDL_PER_MMOLL }
+        if (explicit != null) return explicit
+
+        val rawValue = firstFiniteField(entry, "raw_value", "raw") ?: return null
+        val unit = entry.optString("raw_unit", "")
+            .ifBlank { entry.optString("display_unit", "") }
+            .ifBlank { entry.optString("unit", "") }
+            .lowercase(Locale.US)
+        return when {
+            unit.contains("mmol") -> rawValue * MGDL_PER_MMOLL
+            unit.contains("mg") -> rawValue
+            rawValue in 1.0..40.0 -> rawValue * MGDL_PER_MMOLL
+            rawValue in 40.0..600.0 -> rawValue
+            else -> null
+        }
+    }
+
+    private fun inferCompactGlucoseMgdl(value: Double): Double =
+        if (value in 1.0..40.0) value * MGDL_PER_MMOLL else value
 
     private fun importJournal(entry: JSONObject) {
         val journal = when {
@@ -520,6 +757,11 @@ class ApiGlucoseSourceManager(
 
     private fun firstFiniteAny(vararg values: Double): Double? =
         values.firstOrNull { it.isFinite() }
+
+    private fun firstFiniteField(entry: JSONObject, vararg keys: String): Double? =
+        keys.asSequence()
+            .map { key -> entry.optDouble(key, Double.NaN) }
+            .firstOrNull { it.isFinite() && it > 0.0 }
 
     private fun firstLong(vararg values: Long): Long =
         values.firstOrNull { it > 0L } ?: 0L

@@ -6,6 +6,7 @@ data class ManagedSensorCurrentSnapshot(
     val timeMillis: Long,
     val glucoseValue: Float,
     val rawGlucoseValue: Float = Float.NaN,
+    val calibratedGlucoseValue: Float = Float.NaN,
     val rate: Float = Float.NaN,
     val sensorGen: Int = 0,
 )

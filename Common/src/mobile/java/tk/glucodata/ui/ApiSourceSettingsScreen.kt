@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Key
@@ -84,6 +85,13 @@ fun ApiSourceSettingsScreen(navController: NavController) {
     var showSecret by rememberSaveable { mutableStateOf(false) }
     var showPresetSheet by rememberSaveable { mutableStateOf(false) }
 
+    fun presetNeedsCredentials(value: String): Boolean =
+        when (ApiGlucoseSourceRegistry.normalizePreset(value)) {
+            ApiGlucoseSourceRegistry.PRESET_TELEGRAM_BOT,
+            ApiGlucoseSourceRegistry.PRESET_VK_DIRECT -> true
+            else -> false
+        }
+
     fun persist(connect: Boolean = false) {
         val seconds = pollSeconds.toIntOrNull()?.coerceAtLeast(30)
             ?: ApiGlucoseSourceRegistry.DEFAULT_POLL_SECONDS
@@ -113,7 +121,12 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                     format = format,
                     pollSeconds = seconds,
                 )
-                Toast.makeText(context, context.getString(R.string.api_source_url_required), Toast.LENGTH_SHORT).show()
+                val messageRes = if (presetNeedsCredentials(preset)) {
+                    R.string.api_source_credentials_required
+                } else {
+                    R.string.api_source_url_required
+                }
+                Toast.makeText(context, context.getString(messageRes), Toast.LENGTH_SHORT).show()
             }
         } else if (!enabled) {
             ApiGlucoseSourceRegistry.saveConfig(
@@ -148,9 +161,10 @@ fun ApiSourceSettingsScreen(navController: NavController) {
     }
 
     fun applyPreset(nextPreset: String) {
-        preset = ApiGlucoseSourceRegistry.normalizePreset(nextPreset)
-        url = ApiGlucoseSourceRegistry.defaultUrl(preset)
-        format = ApiGlucoseSourceRegistry.defaultFormat(preset)
+        val normalizedPreset = ApiGlucoseSourceRegistry.normalizePreset(nextPreset)
+        preset = normalizedPreset
+        url = ApiGlucoseSourceRegistry.defaultUrl(normalizedPreset)
+        format = ApiGlucoseSourceRegistry.defaultFormat(normalizedPreset)
         showPresetSheet = false
         persist(connect = enabled)
     }
@@ -166,6 +180,8 @@ fun ApiSourceSettingsScreen(navController: NavController) {
 
     val activeAlpha = if (enabled) 1f else 0.68f
     val isVk = preset == ApiGlucoseSourceRegistry.PRESET_VK_DIRECT
+    val isTelegram = preset == ApiGlucoseSourceRegistry.PRESET_TELEGRAM_BOT
+    val isCredentialPreset = isVk || isTelegram
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -239,7 +255,7 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                                 onChangePreset = { showPresetSheet = true }
                             )
 
-                            if (isVk) {
+                            if (isCredentialPreset) {
                                 OutlinedTextField(
                                     value = token,
                                     onValueChange = {
@@ -248,7 +264,17 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
-                                    label = { Text(stringResource(R.string.api_source_vk_token)) },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                if (isTelegram) {
+                                                    R.string.api_source_telegram_token
+                                                } else {
+                                                    R.string.api_source_vk_token
+                                                }
+                                            )
+                                        )
+                                    },
                                     leadingIcon = { Icon(Icons.Filled.Key, contentDescription = null) },
                                     visualTransformation = if (showSecret) {
                                         VisualTransformation.None
@@ -271,18 +297,45 @@ fun ApiSourceSettingsScreen(navController: NavController) {
                                 OutlinedTextField(
                                     value = peerId,
                                     onValueChange = {
-                                        peerId = it.filter { ch -> ch.isDigit() || ch == '-' }
+                                        peerId = if (isTelegram) {
+                                            it
+                                        } else {
+                                            it.filter { ch -> ch.isDigit() || ch == '-' }
+                                        }
                                         persist()
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     singleLine = true,
-                                    label = { Text(stringResource(R.string.api_source_vk_sender_id)) },
-                                    supportingText = { Text(stringResource(R.string.api_source_vk_note)) },
+                                    label = {
+                                        Text(
+                                            stringResource(
+                                                if (isTelegram) {
+                                                    R.string.api_source_telegram_chat_ids
+                                                } else {
+                                                    R.string.api_source_vk_sender_id
+                                                }
+                                            )
+                                        )
+                                    },
+                                    supportingText = {
+                                        Text(
+                                            stringResource(
+                                                if (isTelegram) {
+                                                    R.string.api_source_telegram_note
+                                                } else {
+                                                    R.string.api_source_vk_note
+                                                }
+                                            )
+                                        )
+                                    },
                                     keyboardOptions = KeyboardOptions(
-                                        keyboardType = KeyboardType.Number,
+                                        keyboardType = if (isTelegram) KeyboardType.Text else KeyboardType.Number,
                                         imeAction = ImeAction.Next
                                     )
                                 )
+                            }
+
+                            if (isVk) {
                                 OutlinedTextField(
                                     value = apiVersion,
                                     onValueChange = {
@@ -494,6 +547,12 @@ private fun sourcePresetSpecs(): List<SourcePresetSpec> =
             icon = Icons.Filled.CloudDownload
         ),
         SourcePresetSpec(
+            id = ApiGlucoseSourceRegistry.PRESET_TELEGRAM_BOT,
+            titleRes = R.string.api_source_preset_telegram,
+            descriptionRes = R.string.api_source_preset_telegram_desc,
+            icon = Icons.AutoMirrored.Filled.Send
+        ),
+        SourcePresetSpec(
             id = ApiGlucoseSourceRegistry.PRESET_VK_DIRECT,
             titleRes = R.string.api_source_preset_vk_direct,
             descriptionRes = R.string.api_source_preset_vk_direct_desc,
@@ -503,12 +562,14 @@ private fun sourcePresetSpecs(): List<SourcePresetSpec> =
 
 private fun apiSourcePresetTitle(preset: String): Int =
     when (ApiGlucoseSourceRegistry.normalizePreset(preset)) {
+        ApiGlucoseSourceRegistry.PRESET_TELEGRAM_BOT -> R.string.api_source_preset_telegram
         ApiGlucoseSourceRegistry.PRESET_VK_DIRECT -> R.string.api_source_preset_vk_direct
         else -> R.string.api_source_preset_custom_json
     }
 
 private fun apiSourcePresetDescription(preset: String): Int =
     when (ApiGlucoseSourceRegistry.normalizePreset(preset)) {
+        ApiGlucoseSourceRegistry.PRESET_TELEGRAM_BOT -> R.string.api_source_preset_telegram_desc
         ApiGlucoseSourceRegistry.PRESET_VK_DIRECT -> R.string.api_source_preset_vk_direct_desc
         else -> R.string.api_source_preset_custom_json_desc
     }

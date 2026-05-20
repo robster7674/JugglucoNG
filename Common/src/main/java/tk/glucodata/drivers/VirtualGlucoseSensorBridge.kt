@@ -20,9 +20,17 @@ object VirtualGlucoseSensorBridge {
     data class Reading(
         val timestampMs: Long,
         val glucoseMgdl: Float,
+        val autoMgdl: Float = Float.NaN,
+        val calibratedMgdl: Float = Float.NaN,
         val rawMgdl: Float = Float.NaN,
         val rate: Float = Float.NaN,
-    )
+    ) {
+        val storageGlucoseMgdl: Float
+            get() = autoMgdl.takeIf { it.isFinite() && it > 0f } ?: glucoseMgdl
+
+        val primaryGlucoseMgdl: Float
+            get() = calibratedMgdl.takeIf { it.isFinite() && it > 0f } ?: glucoseMgdl
+    }
 
     @JvmStatic
     fun importHistory(
@@ -49,7 +57,7 @@ object VirtualGlucoseSensorBridge {
         readings
             .asSequence()
             .filter { it.timestampMs > latestRoomTimestamp }
-            .filter { it.glucoseMgdl.isFinite() && it.glucoseMgdl > 0f }
+            .filter { it.storageGlucoseMgdl.isFinite() && it.storageGlucoseMgdl > 0f }
             .filterNot {
                 existingTimestamps.isNotEmpty() &&
                     hasNearbyTimestamp(existingTimestamps, it.timestampMs, nearDuplicateWindowMs)
@@ -70,7 +78,7 @@ object VirtualGlucoseSensorBridge {
         val rawValues = FloatArray(ordered.size)
         ordered.forEachIndexed { index, reading ->
             timestamps[index] = reading.timestampMs
-            values[index] = reading.glucoseMgdl
+            values[index] = reading.storageGlucoseMgdl
             rawValues[index] = reading.rawMgdl.takeIf { it.isFinite() && it > 0f } ?: Float.NaN
         }
         if (!HistorySyncAccess.storeSensorHistoryBatchBlocking(sensorSerial, timestamps, values, rawValues)) {
@@ -123,22 +131,28 @@ object VirtualGlucoseSensorBridge {
         logLabel: String = "virtual",
     ) {
         if (sensorSerial.isBlank()) return
-        if (reading.timestampMs <= 0L || !reading.glucoseMgdl.isFinite() || reading.glucoseMgdl <= 0f) return
+        if (reading.timestampMs <= 0L ||
+            !reading.storageGlucoseMgdl.isFinite() ||
+            reading.storageGlucoseMgdl <= 0f
+        ) {
+            return
+        }
 
         val rawMgdl = reading.rawMgdl.takeIf { it.isFinite() && it > 0f } ?: 0f
         val rate = reading.rate.takeIf { it.isFinite() } ?: 0f
         HistorySyncAccess.storeCurrentReadingAsync(
             reading.timestampMs,
-            reading.glucoseMgdl,
+            reading.storageGlucoseMgdl,
             rawMgdl,
             rate,
             sensorSerial,
         )
 
+        val primaryMgdl = reading.primaryGlucoseMgdl
         val glucoseDisplay = if (Applic.unit == 1) {
-            reading.glucoseMgdl / MMOL_TO_MGDL
+            primaryMgdl / MMOL_TO_MGDL
         } else {
-            reading.glucoseMgdl
+            primaryMgdl
         }
         SuperGattCallback.processExternalCurrentReading(
             sensorSerial,
@@ -154,7 +168,7 @@ object VirtualGlucoseSensorBridge {
                 "Published %s current for %s: %.1f mg/dL at %d",
                 logLabel,
                 sensorSerial,
-                reading.glucoseMgdl,
+                primaryMgdl,
                 reading.timestampMs,
             ),
         )

@@ -100,6 +100,7 @@ object CurrentDisplaySource {
         val initialSnapshot = resolveFromLive(
             liveValueText = current?.valueText,
             liveNumericValue = current?.numericValue ?: Float.NaN,
+            liveCalibratedValue = current?.calibratedNumericValue ?: Float.NaN,
             rate = current?.rate ?: Float.NaN,
             targetTimeMillis = if (smoothingMode.collapseChunks) {
                 processedPoints.lastOrNull()?.timestamp ?: current?.timeMillis ?: 0L
@@ -166,6 +167,7 @@ object CurrentDisplaySource {
             valueText = "",
             numericValue = liveNumericValue,
             rawNumericValue = Float.NaN,
+            calibratedNumericValue = Float.NaN,
             rate = rate,
             sensorId = resolvedSensorId,
             sensorGen = sensorGen,
@@ -184,6 +186,7 @@ object CurrentDisplaySource {
         val initialSnapshot = resolveFromLive(
             liveValueText = null,
             liveNumericValue = liveNumericValue,
+            liveCalibratedValue = Float.NaN,
             rate = rate,
             targetTimeMillis = if (collapseChunks) {
                 processedPoints.lastOrNull()?.timestamp ?: targetTimeMillis
@@ -277,6 +280,36 @@ object CurrentDisplaySource {
         recentPoints: List<GlucosePoint>,
         viewMode: Int,
         isMmol: Boolean
+    ): Snapshot? =
+        resolveFromLive(
+            liveValueText = liveValueText,
+            liveNumericValue = liveNumericValue,
+            liveCalibratedValue = Float.NaN,
+            rate = rate,
+            targetTimeMillis = targetTimeMillis,
+            sensorId = sensorId,
+            sensorGen = sensorGen,
+            index = index,
+            source = source,
+            recentPoints = recentPoints,
+            viewMode = viewMode,
+            isMmol = isMmol
+        )
+
+    @JvmStatic
+    fun resolveFromLive(
+        liveValueText: String?,
+        liveNumericValue: Float,
+        liveCalibratedValue: Float = Float.NaN,
+        rate: Float,
+        targetTimeMillis: Long,
+        sensorId: String?,
+        sensorGen: Int,
+        index: Int,
+        source: String,
+        recentPoints: List<GlucosePoint>,
+        viewMode: Int,
+        isMmol: Boolean
     ): Snapshot? {
         val exactMatch = findExactPoint(recentPoints, targetTimeMillis)
         val match = exactMatch ?: recentPoints.lastOrNull()
@@ -295,16 +328,31 @@ object CurrentDisplaySource {
             rawValue = liveValue
         }
 
-        val displayValues = exactMatch?.let {
-            resolveDisplayValuesForPoint(
-                point = it,
-                viewMode = viewMode,
-                isMmol = isMmol,
-                sensorId = sensorId
-            )
+        val importedCalibratedValue = liveCalibratedValue
+            .takeIf { it.isFinite() && it > 0.1f }
+        val displayValues = exactMatch?.let { point ->
+            val hideInitialWhenCalibrated = shouldHideInitialWhenCalibrated()
+            if (importedCalibratedValue != null) {
+                DisplayValueResolver.resolve(
+                    autoValue = point.value,
+                    rawValue = point.rawValue,
+                    viewMode = viewMode,
+                    isMmol = isMmol,
+                    unitLabel = "",
+                    calibratedValue = importedCalibratedValue,
+                    hideInitialWhenCalibrated = hideInitialWhenCalibrated
+                )
+            } else {
+                resolveDisplayValuesForPoint(
+                    point = point,
+                    viewMode = viewMode,
+                    isMmol = isMmol,
+                    sensorId = sensorId
+                )
+            }
         } ?: run {
             val hideInitialWhenCalibrated = shouldHideInitialWhenCalibrated()
-            val calibratedValue = resolveCalibratedValue(
+            val calibratedValue = importedCalibratedValue ?: resolveCalibratedValue(
                 liveValue = liveValue,
                 autoValue = autoValue,
                 rawValue = rawValue,
@@ -338,6 +386,7 @@ object CurrentDisplaySource {
             sensorId = sensorId,
             autoValue = autoValue,
             rawValue = rawValue,
+            calibratedValue = liveCalibratedValue,
             targetTimeMillis = resolvedTime,
             isMmol = isMmol
         )
@@ -586,9 +635,15 @@ object CurrentDisplaySource {
         sensorId: String?,
         autoValue: Float,
         rawValue: Float,
+        calibratedValue: Float,
         targetTimeMillis: Long,
         isMmol: Boolean
     ): Int {
+        val importedCalibratedMgdl = displayToMgdl(calibratedValue, isMmol)
+        if (importedCalibratedMgdl > 0) {
+            return importedCalibratedMgdl
+        }
+
         val calibratedAuto = calibrateForShare(sensorId, autoValue, targetTimeMillis, false)
         if (calibratedAuto > 0f) {
             return displayToMgdl(calibratedAuto, isMmol)

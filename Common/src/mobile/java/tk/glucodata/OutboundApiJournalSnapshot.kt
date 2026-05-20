@@ -102,6 +102,22 @@ object OutboundApiJournalSnapshot {
                 item.optDouble("glucose_mgdl", Double.NaN),
                 item.optDouble("mgdl", Double.NaN)
             )?.toFloat()
+            val insulinPresetId = optionalLong(item, "insulinPresetId", "presetId")
+            val foodId = optionalLong(item, "foodId")
+            val proteinGrams = firstFiniteAny(
+                item.optDouble("proteinGrams", Double.NaN),
+                item.optDouble("protein", Double.NaN)
+            )?.toFloat()
+            val fatGrams = firstFiniteAny(
+                item.optDouble("fatGrams", Double.NaN),
+                item.optDouble("fat", Double.NaN)
+            )?.toFloat()
+            val nsUploadedAt = normalizeTimestamp(
+                firstLong(
+                    item.optLong("nsUploadedAt", 0L),
+                    item.optLong("nightscoutUploadedAt", 0L)
+                )
+            )
             val remoteId = item.optString("id", "").ifBlank {
                 "%s:%d:%s:%s".format(
                     Locale.US,
@@ -122,11 +138,17 @@ object OutboundApiJournalSnapshot {
                 glucoseValueMgDl = glucoseMgdl,
                 durationMinutes = item.optInt("durationMinutes", 0).takeIf { it > 0 },
                 intensity = item.optString("intensity", "").ifBlank { null },
-                insulinPresetId = null,
+                insulinPresetId = insulinPresetId,
+                foodId = foodId,
+                proteinGrams = proteinGrams,
+                fatGrams = fatGrams,
                 source = JournalEntrySource.MANUAL.storageValue,
                 sourceRecordId = "api:$remoteId",
                 createdAt = normalizeTimestamp(item.optLong("createdAt", 0L)) ?: now,
-                updatedAt = normalizeTimestamp(item.optLong("updatedAt", 0L)) ?: now
+                updatedAt = normalizeTimestamp(item.optLong("updatedAt", 0L)) ?: now,
+                nsUploadedAt = nsUploadedAt,
+                nsRemoteId = item.optString("nsRemoteId", item.optString("nightscoutId", ""))
+                    .ifBlank { null }
             )
         }
         if (imported.isEmpty()) return 0
@@ -149,9 +171,14 @@ object OutboundApiJournalSnapshot {
             .put("intensity", intensity)
             .put("insulinPresetId", insulinPresetId)
             .put("insulinPreset", insulinPresetId?.let(presetsById::get)?.displayName)
+            .put("foodId", foodId)
+            .put("proteinGrams", finiteOrNull(proteinGrams))
+            .put("fatGrams", finiteOrNull(fatGrams))
             .put("source", source)
             .put("createdAt", createdAt)
             .put("updatedAt", updatedAt)
+            .put("nsUploadedAt", nsUploadedAt)
+            .put("nsRemoteId", nsRemoteId)
     }
 
     private fun activeInsulinUnits(
@@ -254,6 +281,11 @@ object OutboundApiJournalSnapshot {
 
     private fun firstLong(vararg values: Long): Long =
         values.firstOrNull { it > 0L } ?: 0L
+
+    private fun optionalLong(item: JSONObject, vararg keys: String): Long? =
+        keys.asSequence()
+            .map { key -> item.optLong(key, 0L) }
+            .firstOrNull { it > 0L }
 
     private fun normalizeTimestamp(raw: Long): Long? {
         if (raw <= 0L) return null

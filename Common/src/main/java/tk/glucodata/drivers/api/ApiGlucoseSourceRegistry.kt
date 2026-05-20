@@ -21,13 +21,16 @@ object ApiGlucoseSourceRegistry {
     private const val PREF_HEADERS = "api_glucose_source_headers"
     private const val PREF_FORMAT = "api_glucose_source_format"
     private const val PREF_POLL_SECONDS = "api_glucose_source_poll_seconds"
+    private const val PREF_TELEGRAM_UPDATE_OFFSET = "api_glucose_source_telegram_update_offset"
 
     const val SENSOR_PREFIX = "API-"
     const val PRESET_CUSTOM_JSON = "custom_json"
+    const val PRESET_TELEGRAM_BOT = "telegram_bot"
     const val PRESET_VK_DIRECT = "vk_direct"
     const val FORMAT_OUTBOUND_JSON = "outbound_json"
     const val FORMAT_GLUCO_WATCH_TEXT = "gluco_watch_text"
     const val DEFAULT_VK_API_VERSION = "5.199"
+    const val DEFAULT_TELEGRAM_UPDATES_URL = "https://api.telegram.org/bot{token}/getUpdates"
     const val DEFAULT_VK_HISTORY_URL = "https://api.vk.com/method/messages.getHistory"
     const val DEFAULT_POLL_SECONDS = 60
 
@@ -45,14 +48,18 @@ object ApiGlucoseSourceRegistry {
         val sensorId: String get() = deriveSensorId(resolvedUrl(), normalizedPreset, peerId)
         val isUsable: Boolean get() =
             enabled && when (normalizedPreset) {
+                PRESET_TELEGRAM_BOT -> token.isNotBlank() && peerId.isNotBlank()
                 PRESET_VK_DIRECT -> token.isNotBlank() && peerId.isNotBlank()
                 else -> url.isNotBlank()
             }
         val normalizedPreset: String get() = normalizePreset(preset)
         val normalizedFormat: String get() = normalizeFormat(format)
 
-        fun resolvedUrl(): String =
-            url.ifBlank { defaultUrl(normalizedPreset) }
+        fun resolvedUrl(): String {
+            val tokenValue = token.trim().removePrefix("bot")
+            return url.ifBlank { defaultUrl(normalizedPreset) }
+                .replace("{token}", tokenValue)
+        }
     }
 
     private fun prefs(context: Context) =
@@ -80,18 +87,21 @@ object ApiGlucoseSourceRegistry {
 
     fun normalizePreset(preset: String?): String =
         when (preset) {
+            PRESET_TELEGRAM_BOT -> PRESET_TELEGRAM_BOT
             PRESET_VK_DIRECT -> PRESET_VK_DIRECT
             else -> PRESET_CUSTOM_JSON
         }
 
     fun defaultUrl(preset: String?): String =
         when (normalizePreset(preset)) {
+            PRESET_TELEGRAM_BOT -> DEFAULT_TELEGRAM_UPDATES_URL
             PRESET_VK_DIRECT -> DEFAULT_VK_HISTORY_URL
             else -> ""
         }
 
     fun defaultFormat(preset: String?): String =
         when (normalizePreset(preset)) {
+            PRESET_TELEGRAM_BOT,
             PRESET_VK_DIRECT -> FORMAT_GLUCO_WATCH_TEXT
             else -> FORMAT_OUTBOUND_JSON
         }
@@ -100,6 +110,7 @@ object ApiGlucoseSourceRegistry {
         val normalized = normalizeUrl(url)
         val normalizedPreset = normalizePreset(preset)
         val identity = when (normalizedPreset) {
+            PRESET_TELEGRAM_BOT -> "${defaultUrl(normalizedPreset)}|${peerId.orEmpty().trim()}"
             PRESET_VK_DIRECT -> "${defaultUrl(normalizedPreset)}|${peerId.orEmpty().trim()}"
             else -> normalized
         }
@@ -158,6 +169,15 @@ object ApiGlucoseSourceRegistry {
     fun persistedSensorIds(context: Context): List<String> =
         loadConfig(context).takeIf { it.isUsable }?.let { listOf(it.sensorId) }.orEmpty()
 
+    fun loadTelegramUpdateOffset(context: Context): Long =
+        prefs(context).getLong(PREF_TELEGRAM_UPDATE_OFFSET, 0L).coerceAtLeast(0L)
+
+    fun saveTelegramUpdateOffset(context: Context, offset: Long) {
+        prefs(context).edit()
+            .putLong(PREF_TELEGRAM_UPDATE_OFFSET, offset.coerceAtLeast(0L))
+            .apply()
+    }
+
     fun createRestoredCallback(context: Context, sensorId: String, dataptr: Long): SuperGattCallback? {
         val config = loadConfig(context)
         if (!config.isUsable || !matchesSensorId(sensorId, config.sensorId)) return null
@@ -190,11 +210,21 @@ object ApiGlucoseSourceRegistry {
         val normalizedUrl = normalizeUrl(url).ifBlank { defaultUrl(normalizedPreset) }
         val normalizedFormat = normalizeFormat(format ?: defaultFormat(normalizedPreset))
         if (normalizedPreset == PRESET_CUSTOM_JSON && normalizedUrl.isEmpty()) return null
-        if (normalizedPreset == PRESET_VK_DIRECT && (token.isNullOrBlank() || peerId.isNullOrBlank())) return null
+        if ((normalizedPreset == PRESET_TELEGRAM_BOT || normalizedPreset == PRESET_VK_DIRECT) &&
+            (token.isNullOrBlank() || peerId.isNullOrBlank())
+        ) {
+            return null
+        }
         val previous = loadConfig(context)
         val nextSensorId = deriveSensorId(normalizedUrl, normalizedPreset, peerId)
         if (previous.isUsable && !matchesSensorId(previous.sensorId, nextSensorId)) {
             stopSensor(previous.sensorId)
+        }
+        if (!matchesSensorId(previous.sensorId, nextSensorId) ||
+            previous.token != token.orEmpty() ||
+            previous.normalizedPreset != normalizedPreset
+        ) {
+            saveTelegramUpdateOffset(context, 0L)
         }
         saveConfig(
             context = context,
