@@ -324,7 +324,8 @@ fun ImportHistoryCard(
 fun DashboardEmptyState(
     onSensorSelected: (SensorType) -> Unit,
     onImportHistory: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    readinessContent: (@Composable () -> Unit)? = null
 ) {
     val compact = rememberAdaptiveWindowMetrics().isCompact
     val sidePadding = 16.dp
@@ -367,6 +368,11 @@ fun DashboardEmptyState(
         )
 
         Spacer(modifier = Modifier.height(if (compact) 16.dp else 20.dp))
+
+        readinessContent?.let { content ->
+            content()
+            Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
+        }
 
         SensorSelectionCards(
             onSensorSelected = onSensorSelected

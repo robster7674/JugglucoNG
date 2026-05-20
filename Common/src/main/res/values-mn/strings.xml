@@ -1536,6 +1536,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_absorption">Absorption</string>
     <string name="journal_food_protein">Protein</string>
     <string name="journal_food_fat">Fat</string>
+    <string name="journal_food_save_to_library">Санд хадгалах</string>
     <string name="journal_food_protein_short">%1$s g protein</string>
     <string name="journal_food_fat_short">%1$s g fat</string>
     <string name="journal_dose_calculator_desc">Suggest paired insulin or carbs from model profile and active insulin</string>
@@ -1619,13 +1620,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_center">Center</string>
     <string name="alignment_right">Right</string>
     <string name="cgm_readiness_title">CGM readiness</string>
-    <string name="cgm_readiness_dashboard_title">Critical CGM setting</string>
+    <string name="cgm_readiness_dashboard_title">CGM тохиргоонд анхаарал хэрэгтэй</string>
     <string name="cgm_readiness_settings_desc">Check Bluetooth, alarms, battery, notifications, and background behavior</string>
     <string name="cgm_readiness_ready_title">System ready</string>
     <string name="cgm_readiness_attention_title">Needs attention</string>
     <string name="cgm_readiness_ready_body">Bluetooth, alarms, notifications, and background settings look ready.</string>
     <string name="cgm_readiness_attention_body">%1$d settings need attention before CGM delivery is fully reliable.</string>
     <string name="cgm_readiness_summary_body">%1$d items may affect sensor delivery, alarms, or background updates.</string>
+    <string name="cgm_readiness_setup_title">Мэдрэгч тохируулахаас өмнө</string>
+    <string name="cgm_readiness_setup_body">%1$d зүйл холбох, дамжуулах, дохиолол эсвэл арын шинэчлэлтийг саатуулж болзошгүй. Үргэлжлүүлэхээс өмнө бэлэн байдлыг шалгана уу.</string>
     <string name="cgm_readiness_critical_count">%1$d critical</string>
     <string name="cgm_readiness_warning_count">%1$d warning</string>
     <string name="cgm_readiness_attention_count">%1$d review</string>
@@ -1822,6 +1825,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_settings_title">API эх үүсвэр</string>
     <string name="api_source_master_desc">Тогтмол шалгадаг API-аас глюкозын мэдээллийг зөвхөн унших мэдрэгч байдлаар импортлох</string>
     <string name="api_source_url_required">Эхлээд эх үүсвэрийн тохиргоог бүрэн хийнэ үү</string>
+    <string name="api_source_credentials_required">Энэ эх үүсвэрт токен болон chat ID оруулна уу</string>
     <string name="api_source_url_label">Эх үүсвэрийн URL</string>
     <string name="api_source_format">Формат</string>
     <string name="api_source_format_json">Глюкоз JSON</string>
@@ -1848,10 +1852,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_preset_sheet_title">Эх үүсвэрийн бэлэн тохиргоо сонгох</string>
     <string name="api_source_preset_custom_json">Өөрийн JSON endpoint</string>
     <string name="api_source_preset_custom_json_desc">Poll a URL that returns the normalized glucose JSON schema.</string>
+    <string name="api_source_preset_telegram">Telegram ботын шинэчлэлтүүд</string>
+    <string name="api_source_preset_telegram_desc">Telegram ботын шинэчлэлтүүдийг шалгаж JSON эсвэл товч GV заалтыг импортлоно.</string>
     <string name="api_source_preset_vk_direct">VK direct message history</string>
     <string name="api_source_preset_vk_direct_desc">Poll VK messages and import compact GV readings.</string>
     <string name="api_source_vk_token">VK token</string>
     <string name="api_source_vk_sender_id">Илгээгч эсвэл peer ID</string>
     <string name="api_source_vk_note">Uses compact VK messages. Messages older than 24 hours can disappear.</string>
-
+    <string name="api_source_telegram_token">Telegram ботын токен</string>
+    <string name="api_source_telegram_chat_ids">Зөвшөөрсөн chat ID</string>
+    <string name="api_source_telegram_note">Telegram ботын шинэчлэлтийг 24 цаг хүртэл хадгална. Импортлох боломжтой ботын мессежтэй нэг эсвэл хэд хэдэн chat ID/хэрэглэгчийн нэр оруулна уу.</string>
 </resources>

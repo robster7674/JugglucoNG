@@ -1453,6 +1453,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_absorption">吸收</string>
     <string name="journal_food_protein">蛋白质</string>
     <string name="journal_food_fat">脂肪</string>
+    <string name="journal_food_save_to_library">保存到食物库</string>
     <string name="journal_food_protein_short">%1$s 克蛋白质</string>
     <string name="journal_food_fat_short">%1$s 克脂肪</string>
     <string name="journal_dose_calculator_desc">根据模型配置和活性胰岛素建议配对的胰岛素或碳水</string>
@@ -1518,13 +1519,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_center">居中</string>
     <string name="alignment_right">右对齐</string>
     <string name="cgm_readiness_title">CGM 就绪检查</string>
-    <string name="cgm_readiness_dashboard_title">关键 CGM 设置</string>
+    <string name="cgm_readiness_dashboard_title">CGM 设置需要处理</string>
     <string name="cgm_readiness_settings_desc">检查蓝牙、闹钟、电池、通知和后台行为</string>
     <string name="cgm_readiness_ready_title">系统已就绪</string>
     <string name="cgm_readiness_attention_title">需要注意</string>
     <string name="cgm_readiness_ready_body">蓝牙、闹钟、通知和后台设置看起来已就绪。</string>
     <string name="cgm_readiness_attention_body">在 CGM 传输完全可靠之前，有 %1$d 项设置需要处理。</string>
     <string name="cgm_readiness_summary_body">%1$d 项可能影响传感器传输、警报或后台更新。</string>
+    <string name="cgm_readiness_setup_title">传感器设置前</string>
+    <string name="cgm_readiness_setup_body">%1$d 项可能阻止配对、传输、警报或后台更新。继续前请检查就绪状态。</string>
     <string name="cgm_readiness_critical_count">%1$d 项关键</string>
     <string name="cgm_readiness_warning_count">%1$d 项警告</string>
     <string name="cgm_readiness_attention_count">%1$d 项检查</string>
@@ -1725,6 +1728,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_settings_title">API 源</string>
     <string name="api_source_master_desc">从轮询 API 导入葡萄糖作为只读传感器</string>
     <string name="api_source_url_required">请先完成来源设置</string>
+    <string name="api_source_credentials_required">请为此来源输入令牌和聊天 ID</string>
     <string name="api_source_url_label">源 URL</string>
     <string name="api_source_format">格式</string>
     <string name="api_source_format_json">葡萄糖 JSON</string>
@@ -1751,9 +1755,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_preset_sheet_title">选择来源预设</string>
     <string name="api_source_preset_custom_json">自定义 JSON 端点</string>
     <string name="api_source_preset_custom_json_desc">轮询返回标准化血糖 JSON 架构的 URL。</string>
+    <string name="api_source_preset_telegram">Telegram 机器人更新</string>
+    <string name="api_source_preset_telegram_desc">轮询 Telegram 机器人更新并导入 JSON 或紧凑 GV 读数。</string>
     <string name="api_source_preset_vk_direct">VK 私信历史</string>
     <string name="api_source_preset_vk_direct_desc">轮询 VK 消息并导入紧凑 GV 读数。</string>
     <string name="api_source_vk_token">VK 令牌</string>
     <string name="api_source_vk_sender_id">发送者或 peer ID</string>
     <string name="api_source_vk_note">使用紧凑 VK 消息。超过 24 小时的消息可能消失。</string>
+    <string name="api_source_telegram_token">Telegram 机器人令牌</string>
+    <string name="api_source_telegram_chat_ids">允许的聊天 ID</string>
+    <string name="api_source_telegram_note">Telegram 最多保留机器人更新 24 小时。输入一个或多个允许导入机器人消息的聊天 ID/用户名。</string>
 </resources>

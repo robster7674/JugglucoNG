@@ -1510,6 +1510,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_absorption">Всотування</string>
     <string name="journal_food_protein">Білок</string>
     <string name="journal_food_fat">Жир</string>
+    <string name="journal_food_save_to_library">Зберегти в базу</string>
     <string name="journal_food_protein_short">%1$s г білка</string>
     <string name="journal_food_fat_short">%1$s г жиру</string>
     <string name="journal_dose_calculator_desc">Пропонувати парний інсулін або вуглеводи з профілю моделі та активного інсуліну</string>
@@ -1577,13 +1578,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_center">По центру</string>
     <string name="alignment_right">Праворуч</string>
     <string name="cgm_readiness_title">Готовність CGM</string>
-    <string name="cgm_readiness_dashboard_title">Критичне налаштування CGM</string>
+    <string name="cgm_readiness_dashboard_title">Налаштування CGM потребує уваги</string>
     <string name="cgm_readiness_settings_desc">Перевірка Bluetooth, будильників, батареї, сповіщень і роботи у фоні</string>
     <string name="cgm_readiness_ready_title">Система готова</string>
     <string name="cgm_readiness_attention_title">Потребує уваги</string>
     <string name="cgm_readiness_ready_body">Bluetooth, будильники, сповіщення та фонові налаштування виглядають готовими.</string>
     <string name="cgm_readiness_attention_body">%1$d налаштувань потребують уваги, перш ніж доставка CGM буде повністю надійною.</string>
     <string name="cgm_readiness_summary_body">%1$d пунктів можуть впливати на доставку із сенсора, будильники або фонові оновлення.</string>
+    <string name="cgm_readiness_setup_title">Перед налаштуванням сенсора</string>
+    <string name="cgm_readiness_setup_body">%1$d пунктів можуть блокувати сполучення, доставку, тривоги або фонові оновлення. Перевірте готовність перед продовженням.</string>
     <string name="cgm_readiness_critical_count">%1$d критично</string>
     <string name="cgm_readiness_warning_count">%1$d попередження</string>
     <string name="cgm_readiness_attention_count">%1$d перевірити</string>
@@ -1783,6 +1786,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_settings_title">Джерело API</string>
     <string name="api_source_master_desc">Імпортувати глюкозу з API опитування як датчик лише для читання</string>
     <string name="api_source_url_required">Заповніть налаштування джерела</string>
+    <string name="api_source_credentials_required">Укажіть токен і chat ID для цього джерела</string>
     <string name="api_source_url_label">URL джерела</string>
     <string name="api_source_format">Формат</string>
     <string name="api_source_format_json">JSON глюкози</string>
@@ -1809,10 +1813,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_preset_sheet_title">Виберіть пресет джерела</string>
     <string name="api_source_preset_custom_json">Власний JSON endpoint</string>
     <string name="api_source_preset_custom_json_desc">Опитування URL, який повертає нормалізовану JSON-схему глюкози.</string>
+    <string name="api_source_preset_telegram">Оновлення Telegram-бота</string>
+    <string name="api_source_preset_telegram_desc">Опитує оновлення Telegram-бота та імпортує JSON або компактні GV-показники.</string>
     <string name="api_source_preset_vk_direct">Історія прямих повідомлень VK</string>
     <string name="api_source_preset_vk_direct_desc">Опитування повідомлень VK та імпорт компактних показників GV.</string>
     <string name="api_source_vk_token">Токен VK</string>
     <string name="api_source_vk_sender_id">ID відправника або peer ID</string>
     <string name="api_source_vk_note">Використовує компактні повідомлення VK. Повідомлення старші за 24 години можуть зникати.</string>
-
+    <string name="api_source_telegram_token">Токен Telegram-бота</string>
+    <string name="api_source_telegram_chat_ids">Дозволені chat ID</string>
+    <string name="api_source_telegram_note">Telegram зберігає оновлення бота до 24 годин. Укажіть один або кілька chat ID чи імен користувачів, повідомлення яких можна імпортувати.</string>
 </resources>

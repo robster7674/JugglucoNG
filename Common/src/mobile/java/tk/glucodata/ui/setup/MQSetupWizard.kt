@@ -97,6 +97,7 @@ private data class MQScanCandidate(
 @Composable
 fun MQSetupWizard(
     onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
     onComplete: () -> Unit,
 ) {
     val tag = "MQSetupWizard"
@@ -173,6 +174,7 @@ fun MQSetupWizard(
                 MQSetupStep.SCAN -> MQScanStep(
                     ui = ui,
                     qrCodeContent = qrCodeContent,
+                    onNavigateToReadiness = onNavigateToReadiness,
                     onQrCodeChanged = { qrCodeContent = normalizeMqQrCode(it) },
                     onShowManualQrEntry = { showManualQrEntry = true },
                     onManageAccount = { currentStep = MQSetupStep.ACCOUNT },
@@ -267,6 +269,7 @@ fun MQSetupWizard(
 private fun MQScanStep(
     ui: WizardUiMetrics,
     qrCodeContent: String,
+    onNavigateToReadiness: () -> Unit,
     onQrCodeChanged: (String) -> Unit,
     onShowManualQrEntry: () -> Unit,
     onManageAccount: () -> Unit,
@@ -382,6 +385,9 @@ private fun MQScanStep(
             ),
             verticalArrangement = Arrangement.spacedBy(ui.spacerMedium),
         ) {
+            item {
+                tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
+            }
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

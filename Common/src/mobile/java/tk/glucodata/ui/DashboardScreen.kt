@@ -503,6 +503,7 @@ fun DashboardScreen(
     if (showSibionicsWizard) {
         tk.glucodata.ui.setup.SibionicsSetupWizard(
             onDismiss = { showSibionicsWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showSibionicsWizard = false
                 viewModel.refreshData()
@@ -515,6 +516,7 @@ fun DashboardScreen(
     if (showLibreWizard) {
         tk.glucodata.ui.setup.LibreSetupWizard(
             onDismiss = { showLibreWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onScanNfc = {
                 showLibreWizard = false
                 tk.glucodata.MainActivity.launchLibreNfcScan()
@@ -527,6 +529,7 @@ fun DashboardScreen(
     if (showDexcomWizard) {
         tk.glucodata.ui.setup.DexcomSetupWizard(
             onDismiss = { showDexcomWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onScanResult = { raw ->
                 tk.glucodata.MainActivity.handleInlineQrScan(raw, tk.glucodata.MainActivity.REQUEST_BARCODE)
                 showDexcomWizard = false
@@ -539,6 +542,7 @@ fun DashboardScreen(
     if (showAccuChekWizard) {
         tk.glucodata.ui.setup.AccuChekSetupWizard(
             onDismiss = { showAccuChekWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onScanResult = { raw ->
                 tk.glucodata.MainActivity.handleInlineQrScan(raw, tk.glucodata.MainActivity.REQUEST_BARCODE)
                 showAccuChekWizard = false
@@ -551,6 +555,7 @@ fun DashboardScreen(
     if (showCareSensAirWizard) {
         tk.glucodata.ui.setup.CareSensAirSetupWizard(
             onDismiss = { showCareSensAirWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onScanResult = { raw ->
                 tk.glucodata.MainActivity.handleInlineQrScan(raw, tk.glucodata.MainActivity.REQUEST_BARCODE)
                 showCareSensAirWizard = false
@@ -563,6 +568,7 @@ fun DashboardScreen(
     if (showAiDexWizard) {
         tk.glucodata.ui.setup.AiDexSetupWizard(
             onDismiss = { showAiDexWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showAiDexWizard = false
                 viewModel.refreshData()
@@ -575,6 +581,7 @@ fun DashboardScreen(
     if (showICanHealthWizard) {
         tk.glucodata.ui.setup.ICanHealthSetupWizard(
             onDismiss = { showICanHealthWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showICanHealthWizard = false
                 viewModel.refreshData()
@@ -587,6 +594,7 @@ fun DashboardScreen(
     if (showMQWizard) {
         tk.glucodata.ui.setup.MQSetupWizard(
             onDismiss = { showMQWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showMQWizard = false
                 viewModel.refreshData()
@@ -599,6 +607,7 @@ fun DashboardScreen(
     if (showAnytimeWizard) {
         tk.glucodata.ui.setup.AnytimeSetupWizard(
             onDismiss = { showAnytimeWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showAnytimeWizard = false
                 viewModel.refreshData()
@@ -644,6 +653,7 @@ fun DashboardScreen(
                 journalEditorRequest = null
                 clearJournalAction()
             },
+            onSaveFood = viewModel::saveJournalFood,
             onDelete = { entryId ->
                 viewModel.deleteJournalEntry(entryId)
                 journalEditorRequest = null
@@ -1057,7 +1067,10 @@ fun DashboardScreen(
                     importLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "*/*"))
                 },
                 modifier = Modifier
-                    .padding(padding)
+                    .padding(padding),
+                readinessContent = {
+                    DashboardCgmReadinessBanner(onOpenReadiness = onNavigateToReadiness)
+                }
             )
             } else if (isLandscape) {
             // LANDSCAPE: SPLIT VIEW

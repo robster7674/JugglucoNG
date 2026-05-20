@@ -311,6 +311,7 @@ fun SensorScreen(
     if (showSibionicsWizard) {
         tk.glucodata.ui.setup.SibionicsSetupWizard(
             onDismiss = { showSibionicsWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showSibionicsWizard = false
                 viewModel.refreshSensors()
@@ -323,6 +324,7 @@ fun SensorScreen(
     if (showLibreWizard) {
         tk.glucodata.ui.setup.LibreSetupWizard(
             onDismiss = { showLibreWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onScanNfc = {
                 showLibreWizard = false
                 tk.glucodata.MainActivity.launchLibreNfcScan()
@@ -337,6 +339,7 @@ fun SensorScreen(
             onDismiss = {
                 showDexcomWizard = false
             },
+            onNavigateToReadiness = onNavigateToReadiness,
             onScanResult = { raw ->
                 tk.glucodata.MainActivity.handleInlineQrScan(raw, tk.glucodata.MainActivity.REQUEST_BARCODE)
                 showDexcomWizard = false
@@ -351,6 +354,7 @@ fun SensorScreen(
             onDismiss = {
                 showAccuChekWizard = false
             },
+            onNavigateToReadiness = onNavigateToReadiness,
             onScanResult = { raw ->
                 tk.glucodata.MainActivity.handleInlineQrScan(raw, tk.glucodata.MainActivity.REQUEST_BARCODE)
                 showAccuChekWizard = false
@@ -365,6 +369,7 @@ fun SensorScreen(
             onDismiss = {
                 showCareSensAirWizard = false
             },
+            onNavigateToReadiness = onNavigateToReadiness,
             onScanResult = { raw ->
                 tk.glucodata.MainActivity.handleInlineQrScan(raw, tk.glucodata.MainActivity.REQUEST_BARCODE)
                 showCareSensAirWizard = false
@@ -377,6 +382,7 @@ fun SensorScreen(
     if (showAiDexWizard) {
         tk.glucodata.ui.setup.AiDexSetupWizard(
             onDismiss = { showAiDexWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showAiDexWizard = false
                 viewModel.refreshSensors()
@@ -388,6 +394,7 @@ fun SensorScreen(
     if (showICanHealthWizard) {
         tk.glucodata.ui.setup.ICanHealthSetupWizard(
             onDismiss = { showICanHealthWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showICanHealthWizard = false
                 viewModel.refreshSensors()
@@ -400,6 +407,7 @@ fun SensorScreen(
     if (showMQWizard) {
         tk.glucodata.ui.setup.MQSetupWizard(
             onDismiss = { showMQWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showMQWizard = false
                 viewModel.refreshSensors()
@@ -412,6 +420,7 @@ fun SensorScreen(
     if (showAnytimeWizard) {
         tk.glucodata.ui.setup.AnytimeSetupWizard(
             onDismiss = { showAnytimeWizard = false },
+            onNavigateToReadiness = onNavigateToReadiness,
             onComplete = {
                 showAnytimeWizard = false
                 viewModel.refreshSensors()

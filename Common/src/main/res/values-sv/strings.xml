@@ -1437,6 +1437,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_absorption">Absorption</string>
     <string name="journal_food_protein">Protein</string>
     <string name="journal_food_fat">Fett</string>
+    <string name="journal_food_save_to_library">Spara i bibliotek</string>
     <string name="journal_food_protein_short">%1$s g protein</string>
     <string name="journal_food_fat_short">%1$s g fett</string>
     <string name="journal_dose_calculator_desc">Föreslå kopplat insulin eller kolhydrater från modellprofil och aktivt insulin</string>
@@ -1502,13 +1503,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_center">Centrerat</string>
     <string name="alignment_right">Höger</string>
     <string name="cgm_readiness_title">CGM-beredskap</string>
-    <string name="cgm_readiness_dashboard_title">Kritisk CGM-inställning</string>
+    <string name="cgm_readiness_dashboard_title">CGM-installationen behöver uppmärksamhet</string>
     <string name="cgm_readiness_settings_desc">Kontrollera Bluetooth, larm, batteri, aviseringar och bakgrundsbeteende</string>
     <string name="cgm_readiness_ready_title">Systemet är klart</string>
     <string name="cgm_readiness_attention_title">Kräver uppmärksamhet</string>
     <string name="cgm_readiness_ready_body">Bluetooth, larm, aviseringar och bakgrundsinställningar verkar klara.</string>
     <string name="cgm_readiness_attention_body">%1$d inställningar behöver uppmärksamhet innan CGM-leverans är helt tillförlitlig.</string>
     <string name="cgm_readiness_summary_body">%1$d objekt kan påverka sensorleverans, larm eller bakgrundsuppdateringar.</string>
+    <string name="cgm_readiness_setup_title">Före sensorinstallationen</string>
+    <string name="cgm_readiness_setup_body">%1$d objekt kan blockera parkoppling, leverans, larm eller bakgrundsuppdateringar. Granska beredskapen innan du fortsätter.</string>
     <string name="cgm_readiness_critical_count">%1$d kritiskt</string>
     <string name="cgm_readiness_warning_count">%1$d varning</string>
     <string name="cgm_readiness_attention_count">%1$d granska</string>
@@ -1709,6 +1712,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_settings_title">API-källa</string>
     <string name="api_source_master_desc">Importera glukos från ett pollat API som skrivskyddad sensor</string>
     <string name="api_source_url_required">Slutför källinställningarna</string>
+    <string name="api_source_credentials_required">Ange token och chatt-ID för den här källan</string>
     <string name="api_source_url_label">Käll-URL</string>
     <string name="api_source_format">Format</string>
     <string name="api_source_format_json">Glukos-JSON</string>
@@ -1735,10 +1739,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_preset_sheet_title">Välj källpreset</string>
     <string name="api_source_preset_custom_json">Egen JSON-endpoint</string>
     <string name="api_source_preset_custom_json_desc">Pollar en URL som returnerar det normaliserade glukos-JSON-schemat.</string>
+    <string name="api_source_preset_telegram">Telegram-botuppdateringar</string>
+    <string name="api_source_preset_telegram_desc">Pollar Telegram-botuppdateringar och importerar JSON eller kompakta GV-värden.</string>
     <string name="api_source_preset_vk_direct">VK-direktmeddelandehistorik</string>
     <string name="api_source_preset_vk_direct_desc">Pollar VK-meddelanden och importerar kompakta GV-värden.</string>
     <string name="api_source_vk_token">VK-token</string>
     <string name="api_source_vk_sender_id">Avsändar- eller peer-ID</string>
     <string name="api_source_vk_note">Använder kompakta VK-meddelanden. Meddelanden äldre än 24 timmar kan försvinna.</string>
-
+    <string name="api_source_telegram_token">Telegram-bottoken</string>
+    <string name="api_source_telegram_chat_ids">Tillåtna chatt-ID:n</string>
+    <string name="api_source_telegram_note">Telegram sparar botuppdateringar i upp till 24 timmar. Ange ett eller flera chatt-ID:n eller användarnamn vars botmeddelanden får importeras.</string>
 </resources>

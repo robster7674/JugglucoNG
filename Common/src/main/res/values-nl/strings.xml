@@ -1480,6 +1480,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="journal_food_absorption">Opname</string>
     <string name="journal_food_protein">Eiwit</string>
     <string name="journal_food_fat">Vet</string>
+    <string name="journal_food_save_to_library">Opslaan in bibliotheek</string>
     <string name="journal_food_protein_short">%1$s g eiwit</string>
     <string name="journal_food_fat_short">%1$s g vet</string>
     <string name="journal_dose_calculator_desc">Gekoppelde insuline of koolhydraten voorstellen op basis van modelprofiel en actieve insuline</string>
@@ -1545,13 +1546,15 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="alignment_center">Midden</string>
     <string name="alignment_right">Rechts</string>
     <string name="cgm_readiness_title">CGM-gereedheid</string>
-    <string name="cgm_readiness_dashboard_title">Kritieke CGM-instelling</string>
+    <string name="cgm_readiness_dashboard_title">CGM-installatie heeft aandacht nodig</string>
     <string name="cgm_readiness_settings_desc">Controleer Bluetooth, alarmen, batterij, meldingen en achtergrondgedrag</string>
     <string name="cgm_readiness_ready_title">Systeem gereed</string>
     <string name="cgm_readiness_attention_title">Aandacht nodig</string>
     <string name="cgm_readiness_ready_body">Bluetooth, alarmen, meldingen en achtergrondinstellingen lijken gereed.</string>
     <string name="cgm_readiness_attention_body">%1$d instellingen vragen aandacht voordat CGM-levering volledig betrouwbaar is.</string>
     <string name="cgm_readiness_summary_body">%1$d items kunnen sensorlevering, alarmen of achtergrondupdates beïnvloeden.</string>
+    <string name="cgm_readiness_setup_title">Voor sensorinstallatie</string>
+    <string name="cgm_readiness_setup_body">%1$d items kunnen koppelen, levering, alarmen of achtergrondupdates blokkeren. Controleer de gereedheid voordat u doorgaat.</string>
     <string name="cgm_readiness_critical_count">%1$d kritiek</string>
     <string name="cgm_readiness_warning_count">%1$d waarschuwing</string>
     <string name="cgm_readiness_attention_count">%1$d controleren</string>
@@ -1752,6 +1755,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="api_source_settings_title">API-bron</string>
     <string name="api_source_master_desc">Glucose uit een polling-API importeren als alleen-lezen sensor</string>
     <string name="api_source_url_required">Vul de broninstellingen aan</string>
+    <string name="api_source_credentials_required">Voer token en chat-ID in voor deze bron</string>
     <string name="api_source_url_label">Bron-URL</string>
     <string name="api_source_format">Formaat</string>
     <string name="api_source_format_json">Glucose-JSON</string>
@@ -1778,10 +1782,14 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="api_source_preset_sheet_title">Kies bronpreset</string>
     <string name="api_source_preset_custom_json">Aangepast JSON-endpoint</string>
     <string name="api_source_preset_custom_json_desc">Pollt een URL die het genormaliseerde glucose-JSON-schema teruggeeft.</string>
+    <string name="api_source_preset_telegram">Telegram-botupdates</string>
+    <string name="api_source_preset_telegram_desc">Pollt Telegram-botupdates en importeert JSON- of compacte GV-metingen.</string>
     <string name="api_source_preset_vk_direct">VK-directe berichtgeschiedenis</string>
     <string name="api_source_preset_vk_direct_desc">Pollt VK-berichten en importeert compacte GV-metingen.</string>
     <string name="api_source_vk_token">VK-token</string>
     <string name="api_source_vk_sender_id">Afzender- of peer-ID</string>
     <string name="api_source_vk_note">Gebruikt compacte VK-berichten. Berichten ouder dan 24 uur kunnen verdwijnen.</string>
-
+    <string name="api_source_telegram_token">Telegram-bottoken</string>
+    <string name="api_source_telegram_chat_ids">Toegestane chat-ID’s</string>
+    <string name="api_source_telegram_note">Telegram bewaart botupdates tot 24 uur. Voer een of meer chat-ID’s of gebruikersnamen in waarvan botberichten mogen worden geïmporteerd.</string>
 </resources>

@@ -96,6 +96,7 @@ private data class AnytimeQrSetupValidation(
 @Composable
 fun AnytimeSetupWizard(
     onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
     onComplete: () -> Unit,
 ) {
     val tag = "AnytimeSetupWizard"
@@ -155,6 +156,7 @@ fun AnytimeSetupWizard(
                     ui = ui,
                     qrCodeContent = qrCodeContent,
                     qrValidation = qrValidation,
+                    onNavigateToReadiness = onNavigateToReadiness,
                     onQrCodeChanged = { qrCodeContent = normalizeAnytimeQrCode(it) },
                     onShowManualQrEntry = { showManualQrEntry = true },
                     onDeviceSelected = { candidate ->
@@ -231,6 +233,7 @@ private fun AnytimeScanStep(
     ui: WizardUiMetrics,
     qrCodeContent: String,
     qrValidation: AnytimeQrSetupValidation,
+    onNavigateToReadiness: () -> Unit,
     onQrCodeChanged: (String) -> Unit,
     onShowManualQrEntry: () -> Unit,
     onDeviceSelected: (AnytimeScanCandidate) -> Unit,
@@ -349,6 +352,9 @@ private fun AnytimeScanStep(
             ),
             verticalArrangement = Arrangement.spacedBy(ui.spacerMedium),
         ) {
+            item {
+                tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
+            }
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

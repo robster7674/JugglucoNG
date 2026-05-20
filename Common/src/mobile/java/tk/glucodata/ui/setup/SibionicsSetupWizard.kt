@@ -363,6 +363,7 @@ fun constructFakeSibionicsQr(input: String, targetLength: Int = 59): String? {
 @Composable
 fun SibionicsSetupWizard(
     onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
     onComplete: () -> Unit
 ) {
     val ui = rememberWizardUiMetrics()
@@ -470,6 +471,7 @@ fun SibionicsSetupWizard(
                 SibionicsSetupStep.SELECT_TYPE -> SelectTypeStep(
                     compact = ui.compact,
                     selectedType = selectedType,
+                    onNavigateToReadiness = onNavigateToReadiness,
                     onTypeSelected = { type ->
                         selectedType = type
                     },
@@ -894,6 +896,7 @@ fun ScanSensorStep(
 fun SelectTypeStep(
     compact: Boolean,
     selectedType: SibionicsType,
+    onNavigateToReadiness: () -> Unit,
     onTypeSelected: (SibionicsType) -> Unit,
     onNext: () -> Unit,
     onBack: () -> Unit
@@ -920,7 +923,9 @@ fun SelectTypeStep(
             style = if (compact) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(if (compact) 20.dp else 32.dp))
+        Spacer(modifier = Modifier.height(if (compact) 12.dp else 16.dp))
+        tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
+        Spacer(modifier = Modifier.height(if (compact) 16.dp else 24.dp))
 
         // Selection Cards (M3 Expressive - no dividers, surface tonality)
         val listScrollState = rememberScrollState()

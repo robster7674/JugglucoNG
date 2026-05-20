@@ -1465,6 +1465,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="journal_food_absorption">Emilim</string>
     <string name="journal_food_protein">Protein</string>
     <string name="journal_food_fat">Yağ</string>
+    <string name="journal_food_save_to_library">Kitaplığa kaydet</string>
     <string name="journal_food_protein_short">%1$s g protein</string>
     <string name="journal_food_fat_short">%1$s g yağ</string>
     <string name="journal_dose_calculator_desc">Model profili ve aktif insülinden eşleşen insülin veya karbonhidrat öner</string>
@@ -1530,13 +1531,15 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="alignment_center">Orta</string>
     <string name="alignment_right">Sağ</string>
     <string name="cgm_readiness_title">CGM hazırlığı</string>
-    <string name="cgm_readiness_dashboard_title">Kritik CGM ayarı</string>
+    <string name="cgm_readiness_dashboard_title">CGM kurulumu dikkat gerektiriyor</string>
     <string name="cgm_readiness_settings_desc">Bluetooth, alarmlar, pil, bildirimler ve arka plan davranışını denetle</string>
     <string name="cgm_readiness_ready_title">Sistem hazır</string>
     <string name="cgm_readiness_attention_title">Dikkat gerekiyor</string>
     <string name="cgm_readiness_ready_body">Bluetooth, alarmlar, bildirimler ve arka plan ayarları hazır görünüyor.</string>
     <string name="cgm_readiness_attention_body">CGM iletimi tamamen güvenilir olmadan önce %1$d ayar dikkat gerektiriyor.</string>
     <string name="cgm_readiness_summary_body">%1$d öğe sensör iletimini, alarmları veya arka plan güncellemelerini etkileyebilir.</string>
+    <string name="cgm_readiness_setup_title">Sensör kurulumundan önce</string>
+    <string name="cgm_readiness_setup_body">%1$d öğe eşleştirmeyi, iletimi, alarmları veya arka plan güncellemelerini engelleyebilir. Devam etmeden önce hazırlığı gözden geçirin.</string>
     <string name="cgm_readiness_critical_count">%1$d kritik</string>
     <string name="cgm_readiness_warning_count">%1$d uyarı</string>
     <string name="cgm_readiness_attention_count">%1$d incele</string>
@@ -1737,6 +1740,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="api_source_settings_title">API kaynağı</string>
     <string name="api_source_master_desc">Sorgulanan API’den glikozu salt okunur sensör olarak içe aktar</string>
     <string name="api_source_url_required">Kaynak ayarlarını tamamlayın</string>
+    <string name="api_source_credentials_required">Bu kaynak için token ve sohbet kimliği girin</string>
     <string name="api_source_url_label">Kaynak URL</string>
     <string name="api_source_format">Format</string>
     <string name="api_source_format_json">Glikoz JSON</string>
@@ -1763,9 +1767,14 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="api_source_preset_sheet_title">Kaynak ön ayarını seç</string>
     <string name="api_source_preset_custom_json">Özel JSON endpoint</string>
     <string name="api_source_preset_custom_json_desc">Normalleştirilmiş glikoz JSON şemasını döndüren bir URL’yi yoklar.</string>
+    <string name="api_source_preset_telegram">Telegram bot güncellemeleri</string>
+    <string name="api_source_preset_telegram_desc">Telegram bot güncellemelerini yoklar ve JSON ya da kompakt GV okumalarını içe aktarır.</string>
     <string name="api_source_preset_vk_direct">VK doğrudan mesaj geçmişi</string>
     <string name="api_source_preset_vk_direct_desc">VK mesajlarını yoklar ve kompakt GV okumalarını içe aktarır.</string>
     <string name="api_source_vk_token">VK token</string>
     <string name="api_source_vk_sender_id">Gönderen veya peer ID</string>
     <string name="api_source_vk_note">Kompakt VK mesajları kullanır. 24 saatten eski mesajlar kaybolabilir.</string>
+    <string name="api_source_telegram_token">Telegram bot tokenı</string>
+    <string name="api_source_telegram_chat_ids">İzin verilen sohbet kimlikleri</string>
+    <string name="api_source_telegram_note">Telegram bot güncellemelerini 24 saate kadar saklar. Bot mesajları içe aktarılabilecek bir veya daha fazla sohbet kimliği/kullanıcı adı girin.</string>
 </resources>

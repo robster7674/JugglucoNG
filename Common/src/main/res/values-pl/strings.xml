@@ -1472,6 +1472,7 @@
     <string name="journal_food_absorption">Wchłanianie</string>
     <string name="journal_food_protein">Białko</string>
     <string name="journal_food_fat">Tłuszcz</string>
+    <string name="journal_food_save_to_library">Zapisz w bibliotece</string>
     <string name="journal_food_protein_short">%1$s g białka</string>
     <string name="journal_food_fat_short">%1$s g tłuszczu</string>
     <string name="journal_dose_calculator_desc">Sugeruj sparowaną insulinę lub węglowodany z profilu modelu i aktywnej insuliny</string>
@@ -1537,13 +1538,15 @@
     <string name="alignment_center">Środek</string>
     <string name="alignment_right">Do prawej</string>
     <string name="cgm_readiness_title">Gotowość CGM</string>
-    <string name="cgm_readiness_dashboard_title">Krytyczne ustawienie CGM</string>
+    <string name="cgm_readiness_dashboard_title">Konfiguracja CGM wymaga uwagi</string>
     <string name="cgm_readiness_settings_desc">Sprawdź Bluetooth, alarmy, baterię, powiadomienia i działanie w tle</string>
     <string name="cgm_readiness_ready_title">System gotowy</string>
     <string name="cgm_readiness_attention_title">Wymaga uwagi</string>
     <string name="cgm_readiness_ready_body">Bluetooth, alarmy, powiadomienia i ustawienia tła wyglądają na gotowe.</string>
     <string name="cgm_readiness_attention_body">%1$d ustawień wymaga uwagi, zanim dostarczanie CGM będzie w pełni niezawodne.</string>
     <string name="cgm_readiness_summary_body">%1$d elementów może wpływać na dostarczanie z sensora, alarmy lub aktualizacje w tle.</string>
+    <string name="cgm_readiness_setup_title">Przed konfiguracją sensora</string>
+    <string name="cgm_readiness_setup_body">%1$d elementów może blokować parowanie, dostarczanie danych, alarmy lub aktualizacje w tle. Sprawdź gotowość przed kontynuowaniem.</string>
     <string name="cgm_readiness_critical_count">%1$d krytyczne</string>
     <string name="cgm_readiness_warning_count">%1$d ostrzeżenie</string>
     <string name="cgm_readiness_attention_count">%1$d do sprawdzenia</string>
@@ -1744,6 +1747,7 @@
     <string name="api_source_settings_title">Źródło API</string>
     <string name="api_source_master_desc">Importuj glukozę z odpytywanego API jako sensor tylko do odczytu</string>
     <string name="api_source_url_required">Uzupełnij ustawienia źródła</string>
+    <string name="api_source_credentials_required">Wprowadź token i ID czatu dla tego źródła</string>
     <string name="api_source_url_label">URL źródła</string>
     <string name="api_source_format">Format</string>
     <string name="api_source_format_json">JSON glukozy</string>
@@ -1770,10 +1774,14 @@
     <string name="api_source_preset_sheet_title">Wybierz preset źródła</string>
     <string name="api_source_preset_custom_json">Własny endpoint JSON</string>
     <string name="api_source_preset_custom_json_desc">Odpytuje URL zwracający znormalizowany schemat JSON glukozy.</string>
+    <string name="api_source_preset_telegram">Aktualizacje bota Telegram</string>
+    <string name="api_source_preset_telegram_desc">Odpytuje aktualizacje bota Telegram i importuje JSON lub kompaktowe odczyty GV.</string>
     <string name="api_source_preset_vk_direct">Historia wiadomości bezpośrednich VK</string>
     <string name="api_source_preset_vk_direct_desc">Odpytuje wiadomości VK i importuje kompaktowe odczyty GV.</string>
     <string name="api_source_vk_token">Token VK</string>
     <string name="api_source_vk_sender_id">ID nadawcy lub peer ID</string>
     <string name="api_source_vk_note">Używa kompaktowych wiadomości VK. Wiadomości starsze niż 24 godziny mogą zniknąć.</string>
-
+    <string name="api_source_telegram_token">Token bota Telegram</string>
+    <string name="api_source_telegram_chat_ids">Dozwolone ID czatów</string>
+    <string name="api_source_telegram_note">Telegram przechowuje aktualizacje bota do 24 godzin. Wprowadź co najmniej jedno ID czatu lub nazwę użytkownika, których wiadomości bota mogą być importowane.</string>
 </resources>

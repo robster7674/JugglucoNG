@@ -1427,6 +1427,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_absorption">Assorbimento</string>
     <string name="journal_food_protein">Proteine</string>
     <string name="journal_food_fat">Grassi</string>
+    <string name="journal_food_save_to_library">Salva nella libreria</string>
     <string name="journal_food_protein_short">%1$s g proteine</string>
     <string name="journal_food_fat_short">%1$s g grassi</string>
     <string name="journal_dose_calculator_desc">Suggerisci insulina o carboidrati abbinati dal profilo modello e dall\'insulina attiva</string>
@@ -1492,13 +1493,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_center">Centro</string>
     <string name="alignment_right">Destra</string>
     <string name="cgm_readiness_title">Prontezza CGM</string>
-    <string name="cgm_readiness_dashboard_title">Impostazione CGM critica</string>
+    <string name="cgm_readiness_dashboard_title">La configurazione CGM richiede attenzione</string>
     <string name="cgm_readiness_settings_desc">Controlla Bluetooth, allarmi, batteria, notifiche e attività in background</string>
     <string name="cgm_readiness_ready_title">Sistema pronto</string>
     <string name="cgm_readiness_attention_title">Richiede attenzione</string>
     <string name="cgm_readiness_ready_body">Bluetooth, allarmi, notifiche e impostazioni in background sembrano pronti.</string>
     <string name="cgm_readiness_attention_body">%1$d impostazioni richiedono attenzione prima che la consegna CGM sia completamente affidabile.</string>
     <string name="cgm_readiness_summary_body">%1$d elementi possono influire su consegna del sensore, allarmi o aggiornamenti in background.</string>
+    <string name="cgm_readiness_setup_title">Prima della configurazione del sensore</string>
+    <string name="cgm_readiness_setup_body">%1$d elementi possono bloccare associazione, trasmissione, allarmi o aggiornamenti in background. Controlla la prontezza prima di continuare.</string>
     <string name="cgm_readiness_critical_count">%1$d critico</string>
     <string name="cgm_readiness_warning_count">%1$d avviso</string>
     <string name="cgm_readiness_attention_count">%1$d da verificare</string>
@@ -1699,6 +1702,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_settings_title">Sorgente API</string>
     <string name="api_source_master_desc">Importa glucosio da una API interrogata come sensore di sola lettura</string>
     <string name="api_source_url_required">Completa le impostazioni della sorgente</string>
+    <string name="api_source_credentials_required">Inserisci token e ID chat per questa sorgente</string>
     <string name="api_source_url_label">URL sorgente</string>
     <string name="api_source_format">Formato</string>
     <string name="api_source_format_json">JSON glucosio</string>
@@ -1725,10 +1729,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_preset_sheet_title">Scegli preset sorgente</string>
     <string name="api_source_preset_custom_json">Endpoint JSON personalizzato</string>
     <string name="api_source_preset_custom_json_desc">Interroga un URL che restituisce lo schema JSON glicemia normalizzato.</string>
+    <string name="api_source_preset_telegram">Aggiornamenti bot Telegram</string>
+    <string name="api_source_preset_telegram_desc">Interroga gli aggiornamenti del bot Telegram e importa letture JSON o GV compatte.</string>
     <string name="api_source_preset_vk_direct">Cronologia messaggi diretti VK</string>
     <string name="api_source_preset_vk_direct_desc">Interroga i messaggi VK e importa letture GV compatte.</string>
     <string name="api_source_vk_token">Token VK</string>
     <string name="api_source_vk_sender_id">ID mittente o peer</string>
     <string name="api_source_vk_note">Usa messaggi VK compatti. I messaggi più vecchi di 24 ore possono sparire.</string>
-
+    <string name="api_source_telegram_token">Token bot Telegram</string>
+    <string name="api_source_telegram_chat_ids">ID chat consentiti</string>
+    <string name="api_source_telegram_note">Telegram conserva gli aggiornamenti del bot fino a 24 ore. Inserisci uno o più ID chat o nomi utente i cui messaggi bot possono essere importati.</string>
 </resources>

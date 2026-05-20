@@ -86,6 +86,7 @@ import tk.glucodata.ui.components.SettingsSwitchItem
 @Composable
 fun LibreSetupWizard(
     onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
     onScanNfc: () -> Unit
 ) {
     val ui = rememberWizardUiMetrics()
@@ -299,6 +300,11 @@ fun LibreSetupWizard(
                                 textAlign = TextAlign.Center
                             )
                         }
+
+                        tk.glucodata.ui.CgmReadinessSetupBanner(
+                            includeLibreNfc = true,
+                            onOpenReadiness = onNavigateToReadiness
+                        )
 
                         Button(
                             onClick = {

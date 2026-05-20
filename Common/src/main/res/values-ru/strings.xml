@@ -1479,6 +1479,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_absorption">Всасывание</string>
     <string name="journal_food_protein">Белок</string>
     <string name="journal_food_fat">Жир</string>
+    <string name="journal_food_save_to_library">Сохранить в базу</string>
     <string name="journal_food_protein_short">%1$s г белка</string>
     <string name="journal_food_fat_short">%1$s г жира</string>
     <string name="journal_dose_calculator_desc">Предлагать парный инсулин или углеводы по профилю модели и активному инсулину</string>
@@ -1546,13 +1547,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_center">По центру</string>
     <string name="alignment_right">Справа</string>
     <string name="cgm_readiness_title">Готовность CGM</string>
-    <string name="cgm_readiness_dashboard_title">Критическая настройка CGM</string>
+    <string name="cgm_readiness_dashboard_title">Настройка CGM требует внимания</string>
     <string name="cgm_readiness_settings_desc">Проверка Bluetooth, будильников, батареи, уведомлений и работы в фоне</string>
     <string name="cgm_readiness_ready_title">Система готова</string>
     <string name="cgm_readiness_attention_title">Требует внимания</string>
     <string name="cgm_readiness_ready_body">Bluetooth, будильники, уведомления и фоновые настройки выглядят готовыми.</string>
     <string name="cgm_readiness_attention_body">%1$d настроек требуют внимания, прежде чем доставка CGM будет полностью надежной.</string>
     <string name="cgm_readiness_summary_body">%1$d пунктов могут влиять на доставку с сенсора, будильники или фоновые обновления.</string>
+    <string name="cgm_readiness_setup_title">Перед настройкой сенсора</string>
+    <string name="cgm_readiness_setup_body">%1$d пунктов могут блокировать сопряжение, доставку данных, оповещения или фоновые обновления. Проверьте готовность перед продолжением.</string>
     <string name="cgm_readiness_critical_count">%1$d критично</string>
     <string name="cgm_readiness_warning_count">%1$d предупреждение</string>
     <string name="cgm_readiness_attention_count">%1$d проверить</string>
@@ -1752,6 +1755,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_settings_title">Источник API</string>
     <string name="api_source_master_desc">Импортировать глюкозу из опрашиваемого API как датчик только для чтения</string>
     <string name="api_source_url_required">Заполните настройки источника</string>
+    <string name="api_source_credentials_required">Укажите токен и chat ID для этого источника</string>
     <string name="api_source_url_label">URL источника</string>
     <string name="api_source_format">Формат</string>
     <string name="api_source_format_json">JSON глюкозы</string>
@@ -1778,10 +1782,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_preset_sheet_title">Выберите пресет источника</string>
     <string name="api_source_preset_custom_json">Свой JSON endpoint</string>
     <string name="api_source_preset_custom_json_desc">Опрос URL, который возвращает нормализованную JSON-схему глюкозы.</string>
+    <string name="api_source_preset_telegram">Обновления Telegram-бота</string>
+    <string name="api_source_preset_telegram_desc">Опрос обновлений Telegram-бота и импорт JSON или компактных GV-показаний.</string>
     <string name="api_source_preset_vk_direct">История личных сообщений VK</string>
     <string name="api_source_preset_vk_direct_desc">Опрос сообщений VK и импорт компактных значений GV.</string>
     <string name="api_source_vk_token">Токен VK</string>
     <string name="api_source_vk_sender_id">ID отправителя или peer ID</string>
     <string name="api_source_vk_note">Использует компактные сообщения VK. Сообщения старше 24 часов могут исчезать.</string>
-
+    <string name="api_source_telegram_token">Токен Telegram-бота</string>
+    <string name="api_source_telegram_chat_ids">Разрешённые chat ID</string>
+    <string name="api_source_telegram_note">Telegram хранит обновления бота до 24 часов. Укажите один или несколько chat ID/имён пользователей, сообщения которых можно импортировать.</string>
 </resources>

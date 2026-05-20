@@ -109,7 +109,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.SensorSourceResolver
 import tk.glucodata.alerts.AlertRepository
 import tk.glucodata.alerts.AlertType
 import tk.glucodata.data.settings.FloatingSettingsRepository
@@ -117,6 +119,7 @@ import tk.glucodata.data.settings.FloatingSettingsRepository
 private const val CGM_READINESS_PREFS = "cgm_readiness"
 private const val DISMISS_SENSORS = "dismiss_sensors_signature"
 private const val DISMISS_DASHBOARD = "dismiss_dashboard_signature"
+private const val DISMISS_SETUP = "dismiss_setup_signature"
 
 private enum class CgmReadinessStatus {
     Ready,
@@ -165,6 +168,14 @@ private data class CgmReadinessSnapshot(
     val warningItems: List<CgmReadinessItem> = attentionItems.filter { it.status == CgmReadinessStatus.Warning }
     val signature: String = attentionItems.joinToString("|") { "${it.id}:${it.status.name}" }
     val criticalSignature: String = criticalItems.joinToString("|") { "${it.id}:${it.status.name}" }
+}
+
+private fun android.content.SharedPreferences.Editor.dismissReadinessEverywhere(
+    snapshot: CgmReadinessSnapshot
+): android.content.SharedPreferences.Editor {
+    return putString(DISMISS_SENSORS, snapshot.signature)
+        .putString(DISMISS_DASHBOARD, snapshot.criticalSignature)
+        .putString(DISMISS_SETUP, snapshot.signature)
 }
 
 @Composable
@@ -256,7 +267,7 @@ fun SensorsCgmReadinessBanner(
             items = items,
             maxVisibleItems = 3,
             onDismiss = {
-                prefs.edit().putString(DISMISS_SENSORS, snapshot.signature).apply()
+                prefs.edit().dismissReadinessEverywhere(snapshot).apply()
                 dismissedSignature = snapshot.signature
             },
             onOpenReadiness = onOpenReadiness,
@@ -297,10 +308,58 @@ fun DashboardCgmReadinessBanner(
             title = stringResource(R.string.cgm_readiness_dashboard_title),
             snapshot = snapshot,
             items = items,
+            maxVisibleItems = 3,
+            onDismiss = {
+                prefs.edit().dismissReadinessEverywhere(snapshot).apply()
+                dismissedSignature = snapshot.criticalSignature
+            },
+            onOpenReadiness = onOpenReadiness,
+            onAction = actionHandler,
+            elevated = true
+        )
+    }
+}
+
+@Composable
+fun CgmReadinessSetupBanner(
+    modifier: Modifier = Modifier,
+    includeLibreNfc: Boolean = false,
+    onOpenReadiness: () -> Unit
+) {
+    val context = LocalContext.current
+    var refreshTick by remember { mutableIntStateOf(0) }
+    val snapshot = remember(refreshTick, includeLibreNfc) {
+        buildCgmReadinessSnapshot(context, includeLibreNfc = includeLibreNfc)
+    }
+    val items = snapshot.attentionItems
+    val prefs = remember(context) { context.getSharedPreferences(CGM_READINESS_PREFS, Context.MODE_PRIVATE) }
+    var dismissedSignature by remember { mutableStateOf(prefs.getString(DISMISS_SETUP, null)) }
+    val actionHandler = rememberCgmReadinessActionHandler { refreshTick++ }
+
+    RefreshReadinessOnResume { refreshTick++ }
+    ClearDismissalWhenReady(
+        prefs = prefs,
+        key = DISMISS_SETUP,
+        shouldClear = items.isEmpty(),
+        dismissedSignature = dismissedSignature,
+        onCleared = { dismissedSignature = null }
+    )
+
+    AnimatedVisibility(
+        visible = items.isNotEmpty() && dismissedSignature != snapshot.signature,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically(),
+        modifier = modifier
+    ) {
+        CgmReadinessSummaryCard(
+            title = stringResource(R.string.cgm_readiness_setup_title),
+            summaryText = stringResource(R.string.cgm_readiness_setup_body, items.size),
+            snapshot = snapshot,
+            items = items,
             maxVisibleItems = 2,
             onDismiss = {
-                prefs.edit().putString(DISMISS_DASHBOARD, snapshot.criticalSignature).apply()
-                dismissedSignature = snapshot.criticalSignature
+                prefs.edit().dismissReadinessEverywhere(snapshot).apply()
+                dismissedSignature = snapshot.signature
             },
             onOpenReadiness = onOpenReadiness,
             onAction = actionHandler,
@@ -366,6 +425,7 @@ private fun CgmReadinessHero(snapshot: CgmReadinessSnapshot) {
 @Composable
 private fun CgmReadinessSummaryCard(
     title: String,
+    summaryText: String? = null,
     snapshot: CgmReadinessSnapshot,
     items: List<CgmReadinessItem>,
     maxVisibleItems: Int,
@@ -419,7 +479,7 @@ private fun CgmReadinessSummaryCard(
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = stringResource(R.string.cgm_readiness_summary_body, attentionCount),
+                        text = summaryText ?: stringResource(R.string.cgm_readiness_summary_body, attentionCount),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -705,8 +765,11 @@ private fun ClearDismissalWhenReady(
     }
 }
 
-private fun buildCgmReadinessSnapshot(context: Context): CgmReadinessSnapshot {
-    val appContext = context.applicationContext
+private fun buildCgmReadinessSnapshot(
+    context: Context,
+    includeLibreNfc: Boolean = false
+): CgmReadinessSnapshot {    val appContext = context.applicationContext
+    val shouldCheckNfc = includeLibreNfc || hasActiveLibreSensor()
     return CgmReadinessSnapshot(
         listOf(
             blePermissionItem(appContext),
@@ -719,10 +782,40 @@ private fun buildCgmReadinessSnapshot(context: Context): CgmReadinessSnapshot {
             dndItem(appContext),
             overlayItem(appContext),
             dataSaverItem(appContext),
-            nfcItem(appContext),
+            if (shouldCheckNfc) nfcItem(appContext) else null,
             manufacturerBackgroundItem()
         ).filterNotNull()
     )
+}
+
+private fun hasActiveLibreSensor(): Boolean {
+    return runCatching {
+        Natives.activeSensors()
+            ?.filterNotNull()
+            ?.any(::isLibreSensorId) == true
+    }.getOrDefault(false)
+}
+
+private fun isLibreSensorId(sensorId: String): Boolean {
+    val kind = runCatching {
+        SensorSourceResolver.resolveSensorKind(
+            sensorId,
+            SensorSourceResolver.SENSOR_KIND_UNKNOWN
+        )
+    }.getOrDefault(SensorSourceResolver.SENSOR_KIND_UNKNOWN)
+    if (kind == SensorSourceResolver.SENSOR_KIND_LIBRE2 ||
+        kind == SensorSourceResolver.SENSOR_KIND_LIBRE3
+    ) {
+        return true
+    }
+    val sensorPtr = runCatching { Natives.str2sensorptr(sensorId) }.getOrDefault(0L)
+    if (sensorPtr != 0L) {
+        val nativeKind = runCatching { Natives.getSensorptrLibreVersion(sensorPtr) }
+            .getOrDefault(SensorSourceResolver.SENSOR_KIND_UNKNOWN)
+        return nativeKind == SensorSourceResolver.SENSOR_KIND_LIBRE2 ||
+            nativeKind == SensorSourceResolver.SENSOR_KIND_LIBRE3
+    }
+    return false
 }
 
 @SuppressLint("MissingPermission")

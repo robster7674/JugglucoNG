@@ -1638,6 +1638,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="journal_food_absorption">Absorption</string>
     <string name="journal_food_protein">Protein</string>
     <string name="journal_food_fat">Fat</string>
+    <string name="journal_food_save_to_library">Save to library</string>
     <string name="journal_food_protein_short">%1$s g protein</string>
     <string name="journal_food_fat_short">%1$s g fat</string>
     <string name="journal_dose_calculator_desc">Suggest paired insulin or carbs from model profile and active insulin</string>
@@ -1721,13 +1722,15 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="alignment_center">Center</string>
     <string name="alignment_right">Right</string>
     <string name="cgm_readiness_title">CGM readiness</string>
-    <string name="cgm_readiness_dashboard_title">Critical CGM setting</string>
+    <string name="cgm_readiness_dashboard_title">CGM setup needs attention</string>
     <string name="cgm_readiness_settings_desc">Check Bluetooth, alarms, battery, notifications, and background behavior</string>
     <string name="cgm_readiness_ready_title">System ready</string>
     <string name="cgm_readiness_attention_title">Needs attention</string>
     <string name="cgm_readiness_ready_body">Bluetooth, alarms, notifications, and background settings look ready.</string>
     <string name="cgm_readiness_attention_body">%1$d settings need attention before CGM delivery is fully reliable.</string>
     <string name="cgm_readiness_summary_body">%1$d items may affect sensor delivery, alarms, or background updates.</string>
+    <string name="cgm_readiness_setup_title">Before sensor setup</string>
+    <string name="cgm_readiness_setup_body">%1$d items may block pairing, delivery, alarms, or background updates. Review readiness before continuing.</string>
     <string name="cgm_readiness_critical_count">%1$d critical</string>
     <string name="cgm_readiness_warning_count">%1$d warning</string>
     <string name="cgm_readiness_attention_count">%1$d review</string>
@@ -1924,6 +1927,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_settings_title">API source</string>
     <string name="api_source_master_desc">Import glucose from a polling API as a read-only sensor</string>
     <string name="api_source_url_required">Complete source settings first</string>
+    <string name="api_source_credentials_required">Enter token and chat ID for this source</string>
     <string name="api_source_url_label">Source URL</string>
     <string name="api_source_format">Format</string>
     <string name="api_source_format_json">Glucose JSON</string>
@@ -1950,10 +1954,14 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_preset_sheet_title">Choose source preset</string>
     <string name="api_source_preset_custom_json">Custom JSON endpoint</string>
     <string name="api_source_preset_custom_json_desc">Poll a URL that returns the normalized glucose JSON schema.</string>
+    <string name="api_source_preset_telegram">Telegram bot updates</string>
+    <string name="api_source_preset_telegram_desc">Poll Telegram bot updates and import JSON or compact GV readings.</string>
     <string name="api_source_preset_vk_direct">VK direct message history</string>
     <string name="api_source_preset_vk_direct_desc">Poll VK messages and import compact GV readings.</string>
     <string name="api_source_vk_token">VK token</string>
     <string name="api_source_vk_sender_id">Sender or peer ID</string>
     <string name="api_source_vk_note">Uses compact VK messages. Messages older than 24 hours can disappear.</string>
-
+    <string name="api_source_telegram_token">Telegram bot token</string>
+    <string name="api_source_telegram_chat_ids">Allowed chat IDs</string>
+    <string name="api_source_telegram_note">Telegram keeps bot updates for up to 24 hours. Enter one or more chat IDs/usernames whose bot messages may be imported.</string>
 </resources>

@@ -34,6 +34,7 @@ import tk.glucodata.R
 @Composable
 fun CareSensAirSetupWizard(
     onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
     onScanResult: (String) -> Unit
 ) {
     val ui = rememberWizardUiMetrics()
@@ -70,6 +71,9 @@ fun CareSensAirSetupWizard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
+            tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
+            Spacer(modifier = Modifier.height(ui.spacerMedium))
+
             InlineQrScannerCard(
                 modifier = Modifier
                     .fillMaxWidth()

@@ -21,6 +21,7 @@ import tk.glucodata.R
 @Composable
 fun DexcomSetupWizard(
     onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
     onScanResult: (String) -> Unit
 ) {
     val ui = rememberWizardUiMetrics()
@@ -57,6 +58,9 @@ fun DexcomSetupWizard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
+            tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
+            Spacer(modifier = Modifier.height(ui.spacerMedium))
+
             InlineQrScannerCard(
                 modifier = Modifier
                     .fillMaxWidth()

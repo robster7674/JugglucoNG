@@ -65,6 +65,7 @@ private enum class ICanHealthSetupStep {
 @Composable
 fun ICanHealthSetupWizard(
     onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
     onComplete: () -> Unit
 ) {
     val tag = "ICanHealthSetupWizard"
@@ -195,6 +196,7 @@ fun ICanHealthSetupWizard(
             when (step) {
                 ICanHealthSetupStep.ONBOARDING -> ICanHealthOnboardingStep(
                     ui = ui,
+                    onNavigateToReadiness = onNavigateToReadiness,
                     onInlineScanResult = ::requestPermissionsAndAttach,
                     onLaunchFullscreenScan = launchFullscreenScan,
                     onShowManualEntry = { showManualEntry = true }
@@ -227,6 +229,7 @@ fun ICanHealthSetupWizard(
 @Composable
 private fun ICanHealthOnboardingStep(
     ui: WizardUiMetrics,
+    onNavigateToReadiness: () -> Unit,
     onInlineScanResult: (String) -> Unit,
     onLaunchFullscreenScan: () -> Unit,
     onShowManualEntry: () -> Unit,
@@ -238,6 +241,9 @@ private fun ICanHealthOnboardingStep(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
     ) {
+        Spacer(Modifier.height(ui.spacerMedium))
+
+        tk.glucodata.ui.CgmReadinessSetupBanner(onOpenReadiness = onNavigateToReadiness)
         Spacer(Modifier.height(ui.spacerMedium))
 
         InlineQrScannerCard(

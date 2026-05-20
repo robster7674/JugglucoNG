@@ -49,6 +49,7 @@ enum class AiDexSetupStep {
 @Composable
 fun AiDexSetupWizard(
     onDismiss: () -> Unit,
+    onNavigateToReadiness: () -> Unit = {},
     onComplete: () -> Unit
 ) {
     val tag = "AiDexSetupWizard"
@@ -114,6 +115,7 @@ fun AiDexSetupWizard(
                 AiDexSetupStep.SCAN -> AiDexScanStep(
                     ui = ui,
                     vendorLibAvailable = vendorLibAvailable,
+                    onNavigateToReadiness = onNavigateToReadiness,
                     onUploadProprietary = launchUploadPickerSafely,
                     onDeviceSelected = { selectedName, address ->
                         try {
@@ -193,6 +195,7 @@ fun AiDexSetupWizard(
 fun AiDexScanStep(
     ui: WizardUiMetrics,
     vendorLibAvailable: Boolean,
+    onNavigateToReadiness: () -> Unit,
     onUploadProprietary: () -> Unit,
     onDeviceSelected: (String, String) -> Unit
 ) {
@@ -302,6 +305,10 @@ fun AiDexScanStep(
 
     Column(modifier = Modifier.fillMaxSize()) {
         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        tk.glucodata.ui.CgmReadinessSetupBanner(
+            modifier = Modifier.padding(horizontal = ui.horizontalPadding, vertical = ui.spacerMedium),
+            onOpenReadiness = onNavigateToReadiness
+        )
         Spacer(Modifier.height(ui.spacerMedium))
         Row(
             modifier = Modifier
