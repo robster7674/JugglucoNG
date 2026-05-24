@@ -209,7 +209,7 @@ fun DebugSettingsScreen(navController: NavController) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .background(Color(0xFF121212), RoundedCornerShape(8.dp))
+                    .background((MaterialTheme.colorScheme.secondaryContainer), RoundedCornerShape(8.dp))
                     .padding(8.dp)
                     .drawWithContent {
                         drawContent()
@@ -232,7 +232,7 @@ fun DebugSettingsScreen(navController: NavController) {
             ) {
                 Text(
                     text = logContent,
-                    color = Color(0xFFCCCCCC),
+                    color = (MaterialTheme.colorScheme.onSecondaryContainer),
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp,
                     lineHeight = 14.sp,
