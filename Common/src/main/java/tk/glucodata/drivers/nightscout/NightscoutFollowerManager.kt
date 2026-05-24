@@ -131,7 +131,16 @@ class NightscoutFollowerManager(
 
     override fun close() {
         handler.removeCallbacksAndMessages(null)
-        runCatching { handlerThread.quitSafely() }
+        if (stop) {
+            // Permanent shutdown: free() sets stop=true before calling close().
+            // Quit the HandlerThread so it doesn't outlive the sensor object.
+            runCatching { handlerThread.quitSafely() }
+        } else {
+            // Transient disconnect (e.g. Bluetooth off, network drop).
+            // Keep the HandlerThread alive and reset to IDLE so reconnect() can
+            // restart polling without needing a full sensor teardown/reinit.
+            setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_idle, "Nightscout follower idle"))
+        }
         super.close()
     }
 
