@@ -69,6 +69,8 @@ interface AnytimeDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenance
 
     fun getReferenceCalibrationRecords(): List<AnytimeReferenceCalibrationRecord> = emptyList()
 
+    fun getSensorDetailTelemetry(): String = ""
+
     override fun getManagedCurrentSnapshot(maxAgeMillis: Long): ManagedSensorCurrentSnapshot? {
         val snap = getCurrentSnapshot(maxAgeMillis) ?: return null
         return ManagedSensorCurrentSnapshot(
@@ -86,7 +88,8 @@ interface AnytimeDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenance
 
     fun supportsRawDisplayModes(): Boolean = true
     fun supportsSensorCalibration(): Boolean = true
-    override fun supportsResetAction(): Boolean = true
+    override fun supportsResetAction(): Boolean = false
+    override fun supportsClearCalibrationAction(): Boolean = supportsSensorCalibration()
 
     override fun supportsDisplayModes(): Boolean = supportsRawDisplayModes()
     override fun supportsManualCalibration(): Boolean = supportsSensorCalibration()
@@ -119,6 +122,8 @@ interface AnytimeDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenance
             supportsDisplayModes = supportsDisplayModes(),
             supportsManualCalibration = supportsManualCalibration(),
             supportsHardwareReset = supportsResetAction(),
+            supportsClearCalibration = supportsClearCalibrationAction(),
+            sensorDetailTelemetry = runCatching { getSensorDetailTelemetry() }.getOrDefault(""),
             vendorCalibrations = runCatching {
                 getReferenceCalibrationRecords().map { record ->
                     ManagedSensorCalibrationRecord(
@@ -159,6 +164,7 @@ interface AnytimeDriver : ManagedBluetoothSensorDriver, ManagedSensorMaintenance
     fun getSensorAgeHours(): Int
     fun getReadingIntervalMinutes(): Int
     override fun calibrateSensor(glucoseMgDl: Int): Boolean = pushReferenceBg(glucoseMgDl)
+    override fun clearSensorCalibration(): Boolean = false
 
     val vendorFirmwareVersion: String
     val vendorModelName: String

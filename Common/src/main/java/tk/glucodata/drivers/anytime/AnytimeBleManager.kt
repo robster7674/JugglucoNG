@@ -44,12 +44,14 @@ import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
 import java.security.SecureRandom
+import java.util.Locale
 import java.util.UUID
 import tk.glucodata.Applic
 import tk.glucodata.HistorySyncAccess
 import tk.glucodata.Log
 import tk.glucodata.Natives
 import tk.glucodata.R
+import tk.glucodata.SensorBluetooth
 import tk.glucodata.SuperGattCallback
 import tk.glucodata.UiRefreshBus
 import tk.glucodata.drivers.ManagedSensorViewModeStore
@@ -1269,6 +1271,10 @@ class AnytimeBleManager(
             mActiveBluetoothDevice = null
         }
         resolveActiveDeviceFromStoredAddress()
+        if (forceScan && mActiveBluetoothDevice == null) {
+            Log.i(TAG, "Restarting BLE scanner for force-scan reconnect to $SerialNumber")
+            SensorBluetooth.blueone?.stopScan(false)
+        }
         val forceScanConnectAttempt =
             forceScan && phase == Phase.CONNECTING && mBluetoothGatt == null
         if (!forceScanConnectAttempt && (phase == Phase.CONNECTING || phase == Phase.DISCOVERING ||
@@ -2508,6 +2514,9 @@ class AnytimeBleManager(
             lastGlucoseAtMs = sampleMs
             lastGlucoseMgdlTimes10 = result.mgdlTimes10
             lastRawMgdl = if (result.rawMgdl.isNaN()) result.mgdl else result.rawMgdl
+            lastIwNa = result.iwNa
+            lastIbNa = result.ibNa
+            lastTemperatureC = result.temperatureC
             lastAlgorithmResult = result
         }
         Log.i(
@@ -2518,16 +2527,25 @@ class AnytimeBleManager(
                 AnytimeCalibrationPolicy.calibrationStatusName(result.calibrationStatus),
             )
         )
-        // Managed Anytime history is written through Room only.
-        // Do not mirror computed readings into native SensorGlucoseData here:
-        // Natives.addGlucoseStream() stores values in the legacy/native history path
-        // and was producing duplicate phantom rows such as 25.9 (mmol*10) beside
-        // the Room-managed 2.59 mmol/L point.
+        // Managed Anytime glucose history is written through Room only. A
+        // timestamped temperature side series is persisted separately for Stats.
         if (!skipHistoryImport) {
+            var importedImmediateRoomPoint = false
             if (history && !live) {
                 queueHistoryReadingForRoom(sampleMs, result)
             } else {
-                mirrorReadingIntoRoom(sampleMs, result)
+                importedImmediateRoomPoint = mirrorReadingIntoRoom(sampleMs, result)
+            }
+            if (importedImmediateRoomPoint) {
+                persistTemperatureHistory(
+                    listOf(
+                        AnytimeRegistry.TemperatureRecord(
+                            glucoseId = result.glucoseId,
+                            timestampMs = sampleMs,
+                            temperatureC = result.temperatureC,
+                        )
+                    )
+                )
             }
         } else {
             Log.d(TAG, "Skipping startup provisional Room import id=${result.glucoseId} source=${result.source}")
@@ -2550,10 +2568,6 @@ class AnytimeBleManager(
             }
         }.onFailure { Log.stack(TAG, "ensureNativeSensorShell", it) }
     }
-
-    // Intentionally unused: managed Anytime history must not be mirrored into
-    // native SensorGlucoseData. Current/live updates go through emitGlucose();
-    // history rows go through VirtualGlucoseSensorBridge.importHistory().
 
     private fun queueHistoryReadingForRoom(sampleMs: Long, result: AnytimeAlgorithm.Result) {
         if (!historyRoomImportBuffer.queue(sampleMs, result)) {
@@ -2582,6 +2596,13 @@ class AnytimeBleManager(
                     },
                 )
                 if (imported > 0) {
+                    persistTemperatureHistory(imports.map { item ->
+                        AnytimeRegistry.TemperatureRecord(
+                            glucoseId = item.glucoseId,
+                            timestampMs = item.reading.timestampMs,
+                            temperatureC = item.temperatureC,
+                        )
+                    })
                     val firstId = imports.firstOrNull()?.glucoseId
                     val lastId = imports.lastOrNull()?.glucoseId
                     val raw = imports.lastOrNull()?.rawMgdl ?: Float.NaN
@@ -2596,9 +2617,24 @@ class AnytimeBleManager(
         }
     }
 
-    private fun mirrorReadingIntoRoom(sampleMs: Long, result: AnytimeAlgorithm.Result) {
+    private fun persistTemperatureHistory(records: List<AnytimeRegistry.TemperatureRecord>) {
+        val ctx = Applic.app ?: return
         val name = SerialNumber ?: return
+        val valid = records.filter {
+            it.timestampMs > 0L &&
+                    it.temperatureC.isFinite() &&
+                    it.temperatureC > -20f &&
+                    it.temperatureC < 80f
+        }
+        if (valid.isEmpty()) return
         runCatching {
+            AnytimeRegistry.appendTemperatureHistory(ctx, name, valid)
+        }.onFailure { Log.stack(TAG, "persistTemperatureHistory", it) }
+    }
+
+    private fun mirrorReadingIntoRoom(sampleMs: Long, result: AnytimeAlgorithm.Result): Boolean {
+        val name = SerialNumber ?: return false
+        return runCatching {
             val imported = VirtualGlucoseSensorBridge.importHistory(
                 sensorSerial = name,
                 readings = listOf(
@@ -2614,7 +2650,8 @@ class AnytimeBleManager(
                 val raw = if (result.rawMgdl.isNaN()) result.mgdl else result.rawMgdl
                 Log.i(TAG, "Imported $imported Anytime ${result.source} point into Room history (rawLinear=${"%.1f".format(raw)} mg/dL)")
             }
-        }.onFailure { Log.stack(TAG, "mirrorReadingIntoRoom", it) }
+            imported > 0
+        }.onFailure { Log.stack(TAG, "mirrorReadingIntoRoom", it) }.getOrDefault(false)
     }
 
     private fun emitGlucose(result: AnytimeAlgorithm.Result, sampleMs: Long) {
@@ -2780,6 +2817,23 @@ class AnytimeBleManager(
     override fun getReferenceCalibrationRecords(): List<AnytimeReferenceCalibrationRecord> =
         referenceCalibrationRecords
 
+    override fun clearSensorCalibration(): Boolean {
+        pendingFingerstickMgdl = -1
+        pendingFingerstickTargetGlucoseId = -1
+        lastReferenceBgMgdlTimes10 = 0
+        lastReferenceBgGlucoseId = 0
+        lastReferenceAppliedGlucoseId = 0
+        referenceCalibrationRecords = emptyList()
+        setCalibrationStatus(
+            resId = R.string.all_calibrations_cleared,
+            fallback = "All calibrations cleared",
+            clearAfterGlucoseId = if (lastGlucoseId >= 0) lastGlucoseId + 1 else 0,
+        )
+        persistAlgorithmState()
+        Log.i(TAG, "Anytime reference calibrations cleared")
+        return true
+    }
+
 
     override fun softDisconnect() {
         Log.i(TAG, "softDisconnect requested")
@@ -2943,6 +2997,21 @@ class AnytimeBleManager(
         return "Fetching history $done/$stopExclusive"
     }
 
+    private fun latestTelemetryStatus(): String {
+        val r = lastAlgorithmResult
+        val iw = r?.iwNa?.takeIf { it.isFinite() && it > 0f }
+            ?: lastIwNa.takeIf { it.isFinite() && it > 0f }
+        val ib = r?.ibNa?.takeIf { it.isFinite() && it > 0f }
+            ?: lastIbNa.takeIf { it.isFinite() && it > 0f }
+        val temperature = r?.temperatureC?.takeIf { it.isFinite() && it > -20f && it < 80f && it != 0f }
+            ?: lastTemperatureC.takeIf { it.isFinite() && it > -20f && it < 80f && it != 0f }
+        val parts = ArrayList<String>(3)
+        if (iw != null) parts += String.format(Locale.getDefault(), "Iw %.2f nA", iw)
+        if (ib != null) parts += String.format(Locale.getDefault(), "Ib %.2f nA", ib)
+        if (temperature != null) parts += String.format(Locale.getDefault(), "T %.1f°C", temperature)
+        return parts.joinToString(" · ")
+    }
+
     override fun getDetailedBleStatus(): String {
         val base = if (stop) {
             "Paused"
@@ -2958,6 +3027,8 @@ class AnytimeBleManager(
         val calibrationStatus = visibleCalibrationStatus()
         return if (calibrationStatus.isBlank()) base else "$base - $calibrationStatus"
     }
+
+    override fun getSensorDetailTelemetry(): String = latestTelemetryStatus()
 
     /**
      * Format the rich algorithm-internal state for a debug pane. Returns null if

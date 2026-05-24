@@ -46,6 +46,7 @@ internal data class AnytimePendingHistoryRoomImport(
     val source: AnytimeAlgorithm.Source,
     val priority: Int,
     val rawMgdl: Float,
+    val temperatureC: Float,
     val reading: VirtualGlucoseSensorBridge.Reading,
 )
 
@@ -67,6 +68,7 @@ internal class AnytimeHistoryRoomImportBuffer {
             source = result.source,
             priority = priority,
             rawMgdl = raw,
+            temperatureC = result.temperatureC,
             reading = VirtualGlucoseSensorBridge.Reading(
                 timestampMs = sampleMs,
                 glucoseMgdl = result.mgdl,
