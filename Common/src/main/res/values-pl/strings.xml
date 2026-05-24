@@ -1137,6 +1137,7 @@
     <string name="mirror_connection_settings_help_text">Ustawienia połączenia dla tego lustrzanego punktu końcowego.</string>
     <string name="mirror_settings_help_text">Skonfiguruj ustawienia serwera wysyłania/odbioru i kopii lustrzanej.</string>
     <string name="model">Modelka</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Tryby</string>
     <string name="nearbypermission">Pozwolenie w pobliżu</string>
     <string name="new_custom_alert">Nowy alert niestandardowy</string>

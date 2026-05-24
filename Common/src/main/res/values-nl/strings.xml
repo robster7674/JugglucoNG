@@ -1071,7 +1071,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="camerapermission">Cameratoestemming</string>
     <string name="changestart">Veranderstart</string>
     <string name="choose_what_to_clear">Kies wat u wilt wissen</string>
-    <string name="clear_calibrations_title">Duidelijke kalibraties</string>
+    <string name="clear_calibrations_title">Kalibraties wissen</string>
     <string name="clear_disabled_only">Wissen is alleen uitgeschakeld</string>
     <string name="colorhelp">Kleur hulp</string>
     <string name="conditions_optimal">De omstandigheden zien er optimaal uit voor kalibratie</string>
@@ -1145,6 +1145,7 @@ Als je op OK drukt, wordt er een verbinding gemaakt op deze telefoon en wordt er
     <string name="mirror_connection_settings_help_text">Verbindingsinstellingen voor dit spiegeleindpunt.</string>
     <string name="mirror_settings_help_text">Configureer de verzend-/ontvangst- en spiegelserverinstellingen.</string>
     <string name="model">Model</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modi</string>
     <string name="nearbypermission">Toestemming in de buurt</string>
     <string name="new_custom_alert">Nieuwe aangepaste waarschuwing</string>

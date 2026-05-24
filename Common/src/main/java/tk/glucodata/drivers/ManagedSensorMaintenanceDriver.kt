@@ -9,6 +9,10 @@ interface ManagedSensorMaintenanceDriver {
 
     fun resetSensor(): Boolean = false
 
+    fun supportsClearCalibrationAction(): Boolean = false
+
+    fun clearSensorCalibration(): Boolean = false
+
     fun enableResetCompensation() {}
 
     fun disableResetCompensation() {}

@@ -1018,7 +1018,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Autorizzazione della fotocamera</string>
     <string name="changestart">Cambia inizio</string>
     <string name="choose_what_to_clear">Scegli cosa cancellare</string>
-    <string name="clear_calibrations_title">Calibrazioni chiare</string>
+    <string name="clear_calibrations_title">Cancella calibrazioni</string>
     <string name="clear_disabled_only">Cancella solo disabilitato</string>
     <string name="colorhelp">Aiuto sul colore</string>
     <string name="conditions_optimal">Le condizioni sembrano ottimali per la calibrazione</string>
@@ -1087,6 +1087,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Impostazioni di connessione per questo endpoint mirror.</string>
     <string name="mirror_settings_help_text">Configurare le impostazioni di invio/ricezione e del server mirror.</string>
     <string name="model">Modello</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modalità</string>
     <string name="retry_constantly">Continuamente</string>
     <string name="retry_forever">Ripeti per sempre</string>

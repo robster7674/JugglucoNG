@@ -1044,7 +1044,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">相机权限</string>
     <string name="changestart">改变开始</string>
     <string name="choose_what_to_clear">选择要清除的内容</string>
-    <string name="clear_calibrations_title">清晰的校准</string>
+    <string name="clear_calibrations_title">清除校准</string>
     <string name="clear_disabled_only">仅清除禁用</string>
     <string name="colorhelp">颜色帮助</string>
     <string name="conditions_optimal">条件看起来最适合校准</string>
@@ -1118,6 +1118,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">该镜像端点的连接设置。</string>
     <string name="mirror_settings_help_text">配置发送/接收和镜像服务器设置。</string>
     <string name="model">型号</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">模式</string>
     <string name="nearbypermission">附近的许可</string>
     <string name="new_custom_alert">新的自定义警报</string>

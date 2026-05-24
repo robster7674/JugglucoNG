@@ -1042,7 +1042,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Дозвіл камери</string>
     <string name="changestart">Changestart</string>
     <string name="choose_what_to_clear">Виберіть, що очистити</string>
-    <string name="clear_calibrations_title">Чіткі калібрування</string>
+    <string name="clear_calibrations_title">Очистити калібрування</string>
     <string name="clear_disabled_only">Лише очистити вимкнено</string>
     <string name="colorhelp">Довідка про колір</string>
     <string name="conditions_optimal">Умови виглядають оптимальними для калібрування</string>
@@ -1116,6 +1116,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Параметри підключення для цієї дзеркальної кінцевої точки.</string>
     <string name="mirror_settings_help_text">Налаштуйте параметри надсилання/отримання та дзеркального сервера.</string>
     <string name="model">Модель</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Режими</string>
     <string name="nearbypermission">Дозвіл поблизу</string>
     <string name="new_custom_alert">Нове спеціальне сповіщення</string>

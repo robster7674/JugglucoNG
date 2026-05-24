@@ -1098,6 +1098,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Configurações de conexão para este endpoint de espelho.</string>
     <string name="mirror_settings_help_text">Defina as configurações do servidor de envio/recebimento e espelhamento.</string>
     <string name="model">Modelo</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modos</string>
     <string name="retry_constantly">Constantemente</string>
     <string name="retry_forever">Repetir para sempre</string>

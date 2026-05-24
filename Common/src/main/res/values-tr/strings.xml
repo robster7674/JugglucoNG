@@ -1130,6 +1130,7 @@ Tamam\'a basmak bağlantı için QR kod görüntüleyecektir. QR kodu diğer tel
     <string name="mirror_connection_settings_help_text">Bu yansıtma uç noktası için bağlantı ayarları.</string>
     <string name="mirror_settings_help_text">Gönderme/alma ve yansıtma sunucusu ayarlarını yapılandırın.</string>
     <string name="model">Modeli</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modlar</string>
     <string name="nearbypermission">Yakındaki İzin</string>
     <string name="new_custom_alert">Yeni özel uyarı</string>

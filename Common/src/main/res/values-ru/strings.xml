@@ -1064,7 +1064,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Разрешение камеры</string>
     <string name="changestart">Начало изменений</string>
     <string name="choose_what_to_clear">Выберите, что очистить</string>
-    <string name="clear_calibrations_title">Четкие калибровки</string>
+    <string name="clear_calibrations_title">Очистить калибровки</string>
     <string name="clear_disabled_only">Очистить только выключенные</string>
     <string name="colorhelp">Цветовая помощь</string>
     <string name="conditions_optimal">Условия оптимальные</string>
@@ -1138,6 +1138,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Настройки подключения для этой конечной точки зеркала.</string>
     <string name="mirror_settings_help_text">Настройте параметры отправки/получения и зеркального сервера.</string>
     <string name="model">Модель</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Режимы</string>
     <string name="nearbypermission">Разрешение поблизости</string>
     <string name="new_custom_alert">Новое персонализированное оповещение</string>

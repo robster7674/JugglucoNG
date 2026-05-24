@@ -59,6 +59,8 @@ data class ManagedSensorUiSnapshot(
     val supportsDisplayModes: Boolean = false,
     val supportsManualCalibration: Boolean = false,
     val supportsHardwareReset: Boolean = false,
+    val supportsClearCalibration: Boolean = false,
+    val sensorDetailTelemetry: String = "",
     val isVendorPaired: Boolean = false,
     val vendorCalibrations: List<ManagedSensorCalibrationRecord> = emptyList(),
     val isVendorConnected: Boolean = false,

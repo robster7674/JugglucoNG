@@ -1066,7 +1066,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="camerapermission">Kameraerlaubnis</string>
     <string name="changestart">Changestart</string>
     <string name="choose_what_to_clear">Wählen Sie aus, was gelöscht werden soll</string>
-    <string name="clear_calibrations_title">Klare Kalibrierungen</string>
+    <string name="clear_calibrations_title">Kalibrierungen löschen</string>
     <string name="clear_disabled_only">Nur löschen, deaktiviert</string>
     <string name="colorhelp">Farbhilfe</string>
     <string name="conditions_optimal">Die Bedingungen für die Kalibrierung scheinen optimal zu sein</string>
@@ -1140,6 +1140,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_connection_settings_help_text">Verbindungseinstellungen für diesen Spiegelendpunkt.</string>
     <string name="mirror_settings_help_text">Konfigurieren Sie die Sende-/Empfangs- und Spiegelservereinstellungen.</string>
     <string name="model">Modell</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modi</string>
     <string name="nearbypermission">Genehmigung für die Nähe</string>
     <string name="new_custom_alert">Neue benutzerdefinierte Benachrichtigung</string>

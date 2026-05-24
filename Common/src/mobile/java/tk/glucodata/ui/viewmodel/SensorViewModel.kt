@@ -82,6 +82,8 @@ data class SensorInfo(
     val supportsDisplayModes: Boolean = false,
     val supportsManualCalibration: Boolean = false,
     val supportsHardwareReset: Boolean = false,
+    val supportsClearCalibration: Boolean = false,
+    val sensorDetailTelemetry: String = "",
     val detailedStatus: String = "",
     val isActive: Boolean = false,  // True if this is the primary data source
     val isVendorPaired: Boolean = false,  // AiDex: has saved vendor pairing keys
@@ -329,6 +331,8 @@ class SensorViewModel : ViewModel() {
             supportsDisplayModes = snapshot.supportsDisplayModes,
             supportsManualCalibration = snapshot.supportsManualCalibration,
             supportsHardwareReset = snapshot.supportsHardwareReset,
+            supportsClearCalibration = snapshot.supportsClearCalibration,
+            sensorDetailTelemetry = snapshot.sensorDetailTelemetry,
             detailedStatus = snapshot.subtitleStatus.ifBlank {
                 snapshot.detailedStatus.ifBlank { snapshot.connectionStatus }
             },
@@ -776,6 +780,17 @@ class SensorViewModel : ViewModel() {
         val gatt = findGatt(serial)
         if (gatt != null && gatt.dataptr != 0L) {
             try { Natives.siClearCalibration(gatt.dataptr) } catch (_: Throwable) {}
+        }
+    }
+
+    fun clearManagedSensorCalibration(serial: String) {
+        val gatt = findGatt(serial)
+        if (gatt is ManagedSensorMaintenanceDriver && gatt.supportsClearCalibrationAction()) {
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val success = runCatching { gatt.clearSensorCalibration() }.getOrDefault(false)
+                android.util.Log.i("SensorVM", "Managed clearSensorCalibration result: $success serial=$serial")
+                refreshSensors()
+            }
         }
     }
 

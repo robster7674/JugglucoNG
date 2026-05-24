@@ -1028,7 +1028,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Kameratillstånd</string>
     <string name="changestart">Byt start</string>
     <string name="choose_what_to_clear">Välj vad du vill rensa</string>
-    <string name="clear_calibrations_title">Tydliga kalibreringar</string>
+    <string name="clear_calibrations_title">Rensa kalibreringar</string>
     <string name="clear_disabled_only">Rensa endast inaktiverat</string>
     <string name="colorhelp">Färghjälp</string>
     <string name="conditions_optimal">Förhållandena ser optimala ut för kalibrering</string>
@@ -1097,6 +1097,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Anslutningsinställningar för denna spegelslutpunkt.</string>
     <string name="mirror_settings_help_text">Konfigurera skicka/ta emot och spegla serverinställningar.</string>
     <string name="model">Modell</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Lägen</string>
     <string name="retry_constantly">Kontinuerligt</string>
     <string name="retry_forever">Upprepa för alltid</string>
