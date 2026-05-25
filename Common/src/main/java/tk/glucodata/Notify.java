@@ -3665,6 +3665,7 @@ public class Notify {
 
     // static final private boolean alertseperate=true;
 
+    @SuppressLint("ForegroundServiceType")
     void fornotify(Notification notif) {
         {
             if (doLog) {
@@ -3800,6 +3801,7 @@ public class Notify {
         fornotify(getforgroundnotification());
         // notificationManager.notify(glucosenotificationid,getforgroundnotification());
     }
+    @SuppressLint("ForegroundServiceType")
     public void foregroundno(Service service) {
         Notification not = getforgroundnotification();
         if (Build.VERSION.SDK_INT >= 29) {
