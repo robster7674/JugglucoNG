@@ -3,6 +3,7 @@ package tk.glucodata.drivers.nightscout
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
@@ -33,6 +34,7 @@ class NightscoutFollowerManager(
         private const val SENSOR_GEN = 0
         private const val POLL_INTERVAL_MS = 60_000L
         private const val RETRY_INTERVAL_MS = 30_000L
+        private const val PROBE_INTERVAL_MS = 59_000L
         private const val HISTORY_COUNT = 288
         private const val MMOL_TO_MGDL = 18.0182f
     }
@@ -46,6 +48,8 @@ class NightscoutFollowerManager(
     private val handlerThread = HandlerThread("NightscoutFollower-$serial").also { it.start() }
     private val handler = Handler(handlerThread.looper)
     private val pollRunnable = Runnable { refresh("poll") }
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val probeRunnable = Runnable { reconnect(System.currentTimeMillis()) }
 
     @Volatile private var phase: Phase = Phase.IDLE
     @Volatile private var status: String = localizedString(R.string.nightscout_follow_status_idle, "Nightscout follower idle")
@@ -126,6 +130,8 @@ class NightscoutFollowerManager(
     override fun connectDevice(delayMillis: Long): Boolean {
         stop = false
         scheduleRefresh(delayMillis.coerceAtLeast(0L))
+        mainHandler.removeCallbacks(probeRunnable)
+        mainHandler.postDelayed(probeRunnable, PROBE_INTERVAL_MS)
         return true
     }
 
@@ -134,6 +140,7 @@ class NightscoutFollowerManager(
         if (stop) {
             // Permanent shutdown: free() sets stop=true before calling close().
             // Quit the HandlerThread so it doesn't outlive the sensor object.
+            mainHandler.removeCallbacks(probeRunnable)
             runCatching { handlerThread.quitSafely() }
         } else {
             // Transient disconnect (e.g. Bluetooth off, network drop).
@@ -147,6 +154,7 @@ class NightscoutFollowerManager(
     override fun softDisconnect() {
         stop = true
         handler.removeCallbacksAndMessages(null)
+        mainHandler.removeCallbacks(probeRunnable)
         setStatus(Phase.IDLE, localizedString(R.string.nightscout_follow_status_paused, "Nightscout follower paused"))
     }
 
@@ -156,13 +164,18 @@ class NightscoutFollowerManager(
     }
 
     override fun reconnect(now: Long): Boolean {
-        if (!stop && phase == Phase.IDLE) connectDevice(0)
+        if (!stop) {
+            if (phase == Phase.IDLE) connectDevice(0)
+            mainHandler.removeCallbacks(probeRunnable)
+            mainHandler.postDelayed(probeRunnable, PROBE_INTERVAL_MS)
+        }
         return true
     }
 
     override fun terminateManagedSensor(wipeData: Boolean) {
         stop = true
         handler.removeCallbacksAndMessages(null)
+        mainHandler.removeCallbacks(probeRunnable)
         if (wipeData) {
             Applic.app?.let { NightscoutFollowerRegistry.disableFollowerSensor(it) }
         }
