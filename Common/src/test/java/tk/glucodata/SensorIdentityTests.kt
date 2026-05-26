@@ -1,12 +1,24 @@
 package tk.glucodata
 
+import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import tk.glucodata.drivers.icanhealth.ICanHealthConstants
 
 class SensorIdentityTests {
+    @Before
+    fun setUp() {
+        ManagedCurrentSensor.clear()
+    }
+
+    @After
+    fun tearDown() {
+        ManagedCurrentSensor.clear()
+    }
+
     @Test
     fun resolveAvailableMainSensor_prefersSelectedMainWhenStillActive() {
         assertEquals(
@@ -39,6 +51,34 @@ class SensorIdentityTests {
                 selectedMain = null,
                 preferredSensorId = "stale-sensor",
                 activeSensors = arrayOf("replacement-sensor", "other-sensor", "third-sensor")
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_keepsManagedWhenStillActive() {
+        ManagedCurrentSensor.set("X-2222268RXN")
+
+        assertEquals(
+            "X-2222268RXN",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = null,
+                preferredSensorId = "F0FD4509C7C2",
+                activeSensors = arrayOf("F0FD4509C7C2", "X-2222268RXN")
+            )
+        )
+    }
+
+    @Test
+    fun resolveAvailableMainSensor_ignoresStaleManagedWhenActiveSensorExists() {
+        ManagedCurrentSensor.set("X-2222268RXN")
+
+        assertEquals(
+            "F0FD4509C7C2",
+            SensorIdentity.resolveAvailableMainSensor(
+                selectedMain = null,
+                preferredSensorId = null,
+                activeSensors = arrayOf("F0FD4509C7C2")
             )
         )
     }
