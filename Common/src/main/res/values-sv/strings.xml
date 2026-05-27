@@ -44,6 +44,7 @@
   <string name="specifyreceiveordata">Ange \'Ta emot från\' eller data som ska skickas till den andra enheten.</string>
   <string name="specifyip">Du måste ange en IP-adress.</string>
   <string name="portrange">Nätverksport måste vara mellan 1024 och 65535.</string>
+  <string name="mirror_portrange">Mirror-portar måste vara mellan 1 och 65535.</string>
   <string name="start">Starta</string>
   <string name="now">Nu</string>
   <string name="dontchangeamounts">Spegeln skickar värden</string>
@@ -1028,7 +1029,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Kameratillstånd</string>
     <string name="changestart">Byt start</string>
     <string name="choose_what_to_clear">Välj vad du vill rensa</string>
-    <string name="clear_calibrations_title">Tydliga kalibreringar</string>
+    <string name="clear_calibrations_title">Rensa kalibreringar</string>
     <string name="clear_disabled_only">Rensa endast inaktiverat</string>
     <string name="colorhelp">Färghjälp</string>
     <string name="conditions_optimal">Förhållandena ser optimala ut för kalibrering</string>
@@ -1097,6 +1098,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Anslutningsinställningar för denna spegelslutpunkt.</string>
     <string name="mirror_settings_help_text">Konfigurera skicka/ta emot och spegla serverinställningar.</string>
     <string name="model">Modell</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Lägen</string>
     <string name="retry_constantly">Kontinuerligt</string>
     <string name="retry_forever">Upprepa för alltid</string>
@@ -1749,4 +1751,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_token">Telegram-bottoken</string>
     <string name="api_source_telegram_chat_ids">Tillåtna chatt-ID:n</string>
     <string name="api_source_telegram_note">Telegram sparar botuppdateringar i upp till 24 timmar. Ange ett eller flera chatt-ID:n eller användarnamn vars botmeddelanden får importeras.</string>
+    <string name="status_waiting_for_data">Ansluten, väntar på data...</string>
+    <string name="status_raw_values_received">Ansluten, råvärden mottagna</string>
 </resources>

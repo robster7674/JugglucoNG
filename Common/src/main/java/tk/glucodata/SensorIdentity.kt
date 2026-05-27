@@ -166,18 +166,12 @@ object SensorIdentity {
 
     @JvmStatic
     fun resolveMainSensor(): String? {
-        val managed = canonicalOrRaw(ManagedCurrentSensor.get())
-        if (!managed.isNullOrBlank()) {
-            return managed
-        }
-        val main = resolveAppSensorId(Natives.lastsensorname())
-        if (!main.isNullOrBlank()) {
-            return main
-        }
-        return Natives.activeSensors()
-            ?.asSequence()
-            ?.mapNotNull(::resolveAppSensorId)
-            ?.firstOrNull { !it.isNullOrBlank() }
+        val activeSensors = Natives.activeSensors()
+        return resolveAvailableMainSensor(
+            selectedMain = Natives.lastsensorname(),
+            preferredSensorId = null,
+            activeSensors = activeSensors
+        )
     }
 
     @JvmStatic
@@ -200,9 +194,6 @@ object SensorIdentity {
         activeSensors: Array<String?>?
     ): String? {
         val managed = canonicalOrRaw(ManagedCurrentSensor.get())
-        if (!managed.isNullOrBlank()) {
-            return managed
-        }
         val active = activeSensors
             ?.mapNotNull(::canonicalOrRaw)
             ?.distinct()
@@ -211,7 +202,11 @@ object SensorIdentity {
         val canonicalPreferred = canonicalOrRaw(preferredSensorId)
 
         if (active.isEmpty()) {
-            return canonicalSelected ?: canonicalPreferred
+            return managed ?: canonicalSelected ?: canonicalPreferred
+        }
+
+        if (managed != null && active.any { matches(it, managed) }) {
+            return managed
         }
 
         if (canonicalSelected != null && active.any { matches(it, canonicalSelected) }) {

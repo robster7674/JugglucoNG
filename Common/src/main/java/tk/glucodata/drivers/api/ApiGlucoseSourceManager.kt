@@ -40,6 +40,8 @@ class ApiGlucoseSourceManager(
         private const val SENSOR_GEN = 0
         private const val RETRY_INTERVAL_MS = 30_000L
         private const val MGDL_PER_MMOLL = 18.0182f
+        private const val MIN_REASONABLE_TIMESTAMP_MS = 946_684_800_000L
+        private const val MAX_FUTURE_TIMESTAMP_DRIFT_MS = 10L * 60L * 1000L
     }
 
     private enum class Phase {
@@ -174,6 +176,7 @@ class ApiGlucoseSourceManager(
 
     override fun softReconnect() {
         stop = false
+        lastImportedHistoryTailMs = 0L
         scheduleRefresh(0L)
     }
 
@@ -213,6 +216,7 @@ class ApiGlucoseSourceManager(
         }
         setStatus(Phase.SYNCING, localizedString(R.string.api_source_status_syncing, "Refreshing API source"))
         try {
+            VirtualGlucoseSensorBridge.pruneFutureHistory(SerialNumber, "API source")
             val readings = fetchReadings()
             if (readings.isEmpty()) {
                 setStatus(Phase.IDLE, localizedString(R.string.api_source_status_no_readings, "No API readings yet"))
@@ -547,7 +551,8 @@ class ApiGlucoseSourceManager(
                 entry.optLong("date", 0L),
                 entry.optLong("mills", 0L),
                 entry.optLong("datetime", 0L),
-            )
+            ),
+            entry.toString()
         ) ?: return null
 
         val rate = firstFiniteAny(entry.optDouble("rate_mgdl_per_min", Double.NaN))?.toFloat()
@@ -627,11 +632,10 @@ class ApiGlucoseSourceManager(
             }
             .toMap()
 
-        val timestamp = normalizeTimestamp(
-            fields["TS"]?.toLongOrNull()
-                ?: fields["TIMESTAMP"]?.toLongOrNull()
-                ?: 0L
-        ) ?: return null
+        val timestampRaw = fields["TS"]?.toLongOrNull()
+            ?: fields["TIMESTAMP"]?.toLongOrNull()
+            ?: 0L
+        val timestamp = normalizeTimestamp(timestampRaw, message) ?: return null
         val glucoseMgdl = fields["MGDL"]?.toDoubleOrNull()
             ?: fields["GLUCOSE_MGDL"]?.toDoubleOrNull()
             ?: fields["GV"]?.toDoubleOrNull()?.let { it * MGDL_PER_MMOLL }
@@ -766,10 +770,46 @@ class ApiGlucoseSourceManager(
     private fun firstLong(vararg values: Long): Long =
         values.firstOrNull { it > 0L } ?: 0L
 
-    private fun normalizeTimestamp(raw: Long): Long? {
+    private fun normalizeTimestamp(raw: Long, sourcePreview: String = ""): Long? {
         if (raw <= 0L) return null
-        val millis = if (raw < 10_000_000_000L) raw * 1000L else raw
-        return millis.takeIf { it > 0L }
+        val millis = when (raw) {
+            in 1_000_000_000L..9_999_999_999L -> raw * 1_000L
+            in 1_000_000_000_000L..9_999_999_999_999L -> raw
+            in 10_000_000_000_000L..99_999_999_999_999L -> {
+                val repaired = raw / 10L
+                if (raw % 10L == 0L && isPlausibleTimestamp(repaired)) {
+                    Log.w(TAG, "Repaired API source timestamp $raw -> $repaired")
+                    repaired
+                } else {
+                    logRejectedTimestamp(raw, "unsupported precision", sourcePreview)
+                    return null
+                }
+            }
+            in 1_000_000_000_000_000L..9_999_999_999_999_999L -> raw / 1_000L
+            in 1_000_000_000_000_000_000L..Long.MAX_VALUE -> raw / 1_000_000L
+            else -> {
+                logRejectedTimestamp(raw, "unsupported precision", sourcePreview)
+                return null
+            }
+        }
+        if (!isPlausibleTimestamp(millis)) {
+            logRejectedTimestamp(raw, "out-of-range timestamp", sourcePreview)
+            return null
+        }
+        return millis
+    }
+
+    private fun isPlausibleTimestamp(timestampMs: Long): Boolean {
+        val maxAccepted = System.currentTimeMillis() + MAX_FUTURE_TIMESTAMP_DRIFT_MS
+        return timestampMs in MIN_REASONABLE_TIMESTAMP_MS..maxAccepted
+    }
+
+    private fun logRejectedTimestamp(raw: Long, reason: String, sourcePreview: String) {
+        val preview = sourcePreview
+            .replace('\n', ' ')
+            .replace('\r', ' ')
+            .take(160)
+        Log.w(TAG, "Ignored API source reading with $reason: ts=$raw preview=$preview")
     }
 
     private fun formEncode(fields: Map<String, String>): String =

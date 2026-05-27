@@ -1730,7 +1730,7 @@ public class Notify {
             if (glucosealarm && Natives.speakalarms()) {
                 final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                 if (current != null) {
-                    SuperGattCallback.talker.speak(current.getPrimaryStr(),
+                    SuperGattCallback.talker.speak(current.getSpeechPrimaryStr(),
                             disturb ? ScanNfcV.audioattributes : notification_audio);
                 }
             }
@@ -1814,7 +1814,7 @@ public class Notify {
                         final CurrentDisplaySource.Snapshot current = resolveNotificationCurrentSnapshot();
                         if (current != null) {
                             Applic.scheduler.schedule(
-                                    () -> SuperGattCallback.talker.speak(current.getPrimaryStr(),
+                                    () -> SuperGattCallback.talker.speak(current.getSpeechPrimaryStr(),
                                             disturb ? ScanNfcV.audioattributes : notification_audio),
                                     300, TimeUnit.MILLISECONDS);
                         } else

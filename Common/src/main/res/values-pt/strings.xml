@@ -50,6 +50,7 @@
 <string name="specifyreceiveordata">Especificar \'Receber de\' ou dados para enviar para outro dispositivo</string>
 <string name="specifyip">Deve especificar um IP</string>
 <string name="portrange">A porta deve estar entre 1024 e 65535</string>
+<string name="mirror_portrange">As portas do espelhamento devem estar entre 1 e 65535</string>
 <string name="start">Iniciar</string>
 <string name="now">Agora</string>
 <string name="dontchangeamounts">Não alterar os valores</string>
@@ -1098,6 +1099,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Configurações de conexão para este endpoint de espelho.</string>
     <string name="mirror_settings_help_text">Defina as configurações do servidor de envio/recebimento e espelhamento.</string>
     <string name="model">Modelo</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modos</string>
     <string name="retry_constantly">Constantemente</string>
     <string name="retry_forever">Repetir para sempre</string>
@@ -1750,4 +1752,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_token">Token do bot Telegram</string>
     <string name="api_source_telegram_chat_ids">IDs de chat permitidos</string>
     <string name="api_source_telegram_note">O Telegram mantém atualizações do bot por até 24 horas. Introduza um ou mais IDs de chat/nomes de utilizador cujas mensagens do bot podem ser importadas.</string>
+    <string name="status_waiting_for_data">Conectado, aguardando dados...</string>
+    <string name="status_raw_values_received">Conectado, valores brutos recebidos</string>
 </resources>

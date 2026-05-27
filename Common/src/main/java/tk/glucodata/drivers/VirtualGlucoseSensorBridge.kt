@@ -16,6 +16,8 @@ import tk.glucodata.UiRefreshBus
 object VirtualGlucoseSensorBridge {
     private const val TAG = "VirtualGlucose"
     private const val MMOL_TO_MGDL = 18.0182f
+    private const val MIN_REASONABLE_TIMESTAMP_MS = 946_684_800_000L
+    private const val MAX_FUTURE_TIMESTAMP_DRIFT_MS = 10L * 60L * 1000L
 
     data class Reading(
         val timestampMs: Long,
@@ -41,10 +43,17 @@ object VirtualGlucoseSensorBridge {
         nearDuplicateWindowMs: Long = 0L,
     ): Int {
         if (sensorSerial.isBlank() || readings.isEmpty()) return 0
+        val nowMs = System.currentTimeMillis()
+        val validReadings = readings.filter { isUsableReading(it, nowMs) }
+        val skippedInvalid = readings.size - validReadings.size
+        if (skippedInvalid > 0) {
+            Log.w(TAG, "Skipped $skippedInvalid invalid $logLabel history points for $sensorSerial")
+        }
+        if (validReadings.isEmpty()) return 0
         val latestRoomTimestamp = if (backfill) 0L else HistorySyncAccess.getLatestTimestampForSensor(sensorSerial)
         val existingTimestamps = if (nearDuplicateWindowMs > 0L) {
-            val minTimestamp = readings.minOf { it.timestampMs }
-            val maxTimestamp = readings.maxOf { it.timestampMs }
+            val minTimestamp = validReadings.minOf { it.timestampMs }
+            val maxTimestamp = validReadings.maxOf { it.timestampMs }
             HistorySyncAccess.getHistoryTimestampsForSensor(
                 sensorSerial = sensorSerial,
                 startTime = (minTimestamp - nearDuplicateWindowMs).coerceAtLeast(1L),
@@ -54,16 +63,15 @@ object VirtualGlucoseSensorBridge {
             LongArray(0)
         }
         val deduped = LinkedHashMap<Long, Reading>()
-        readings
+        validReadings
             .asSequence()
             .filter { it.timestampMs > latestRoomTimestamp }
-            .filter { it.storageGlucoseMgdl.isFinite() && it.storageGlucoseMgdl > 0f }
             .filterNot {
                 existingTimestamps.isNotEmpty() &&
                     hasNearbyTimestamp(existingTimestamps, it.timestampMs, nearDuplicateWindowMs)
             }
             .forEach { deduped[it.timestampMs] = it }
-        val skippedAsNearDuplicate = readings.size - deduped.size
+        val skippedAsNearDuplicate = validReadings.size - deduped.size
         if (skippedAsNearDuplicate > 0 && nearDuplicateWindowMs > 0L) {
             Log.i(
                 TAG,
@@ -95,6 +103,20 @@ object VirtualGlucoseSensorBridge {
             ),
         )
         return ordered.size
+    }
+
+    @JvmStatic
+    fun pruneFutureHistory(
+        sensorSerial: String,
+        logLabel: String = "virtual",
+    ): Int {
+        if (sensorSerial.isBlank()) return 0
+        val cutoff = System.currentTimeMillis() + MAX_FUTURE_TIMESTAMP_DRIFT_MS
+        val removed = HistorySyncAccess.deleteReadingsForSensorAfter(sensorSerial, cutoff)
+        if (removed > 0) {
+            Log.w(TAG, "Removed $removed future $logLabel history rows for $sensorSerial after $cutoff")
+        }
+        return removed
     }
 
     private fun hasNearbyTimestamp(
@@ -131,10 +153,8 @@ object VirtualGlucoseSensorBridge {
         logLabel: String = "virtual",
     ) {
         if (sensorSerial.isBlank()) return
-        if (reading.timestampMs <= 0L ||
-            !reading.storageGlucoseMgdl.isFinite() ||
-            reading.storageGlucoseMgdl <= 0f
-        ) {
+        if (!isUsableReading(reading, System.currentTimeMillis())) {
+            Log.w(TAG, "Ignored invalid $logLabel current for $sensorSerial at ${reading.timestampMs}")
             return
         }
 
@@ -174,4 +194,12 @@ object VirtualGlucoseSensorBridge {
         )
         UiRefreshBus.requestDataRefresh()
     }
+
+    private fun isUsableReading(reading: Reading, nowMs: Long): Boolean =
+        isPlausibleTimestamp(reading.timestampMs, nowMs) &&
+            reading.storageGlucoseMgdl.isFinite() &&
+            reading.storageGlucoseMgdl > 0f
+
+    private fun isPlausibleTimestamp(timestampMs: Long, nowMs: Long): Boolean =
+        timestampMs in MIN_REASONABLE_TIMESTAMP_MS..(nowMs + MAX_FUTURE_TIMESTAMP_DRIFT_MS)
 }

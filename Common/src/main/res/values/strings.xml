@@ -48,7 +48,8 @@
     <string name="delete">Delete</string>
     <string name="specifyreceiveordata">Specify \'Receive from\' or data to send to other device</string>
     <string name="specifyip">You should specify an IP</string>
-    <string name="portrange">Network ports should be between 1 and 65535</string>
+    <string name="portrange">Network ports should be between 1024 and 65535</string>
+    <string name="mirror_portrange">Mirror ports should be between 1 and 65535</string>
     <string name="start">Start</string>
     <string name="now">Now</string>
     <string name="dontchangeamounts">Mirror sends amounts</string>
@@ -1282,6 +1283,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_error_with_code">Mirror error (%1$d)</string>
     <string name="mirror_settings_help_text">Configure send/receive and mirror server settings.</string>
     <string name="model">Model</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modes</string>
     <string name="nearbypermission">Nearby Permission</string>
     <string name="new_calibration_with_mode">New calibration (%1$s)</string>

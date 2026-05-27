@@ -1,6 +1,7 @@
 package tk.glucodata.drivers.nightscout
 
 import android.content.Context
+import java.net.HttpURLConnection
 import java.security.MessageDigest
 import java.util.Locale
 import tk.glucodata.ManagedCurrentSensor
@@ -131,4 +132,26 @@ object NightscoutFollowerRegistry {
         val right = expected?.trim().orEmpty()
         return left.isNotEmpty() && right.isNotEmpty() && left.equals(right, ignoreCase = true)
     }
+
+    fun applyAuth(connection: HttpURLConnection, secret: String) {
+        val trimmed = secret.trim()
+        if (trimmed.isEmpty()) return
+        if (trimmed.startsWith("Bearer ", ignoreCase = true)) {
+            connection.setRequestProperty("Authorization", trimmed)
+            return
+        }
+        if (trimmed.startsWith("token=", ignoreCase = true)) {
+            connection.setRequestProperty("Authorization", "Bearer ${trimmed.substringAfter('=')}")
+            return
+        }
+        connection.setRequestProperty(
+            "api-secret",
+            if (trimmed.matches(Regex("^[0-9a-fA-F]{40}$"))) trimmed else sha1(trimmed)
+        )
+    }
+
+    private fun sha1(value: String): String =
+        MessageDigest.getInstance("SHA-1")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(Locale.US, it) }
 }

@@ -49,6 +49,7 @@
     <string name="specifyreceiveordata">Włącz opcję „Odbieraj” lub określ dane, które mają zostać wysłane do innego urządzenia</string>
     <string name="specifyip">Należy określić adres IP</string>
     <string name="portrange">Porty sieciowe powinny zawierać się w przedziale od 1024 do 65535</string>
+    <string name="mirror_portrange">Porty mirroringu powinny zawierać się w przedziale od 1 do 65535</string>
     <string name="start">Początek</string>
     <string name="now">Teraz</string>
     <string name="dontchangeamounts">Klon wysyła wartości</string>
@@ -1137,6 +1138,7 @@
     <string name="mirror_connection_settings_help_text">Ustawienia połączenia dla tego lustrzanego punktu końcowego.</string>
     <string name="mirror_settings_help_text">Skonfiguruj ustawienia serwera wysyłania/odbioru i kopii lustrzanej.</string>
     <string name="model">Modelka</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Tryby</string>
     <string name="nearbypermission">Pozwolenie w pobliżu</string>
     <string name="new_custom_alert">Nowy alert niestandardowy</string>
@@ -1784,4 +1786,6 @@
     <string name="api_source_telegram_token">Token bota Telegram</string>
     <string name="api_source_telegram_chat_ids">Dozwolone ID czatów</string>
     <string name="api_source_telegram_note">Telegram przechowuje aktualizacje bota do 24 godzin. Wprowadź co najmniej jedno ID czatu lub nazwę użytkownika, których wiadomości bota mogą być importowane.</string>
+    <string name="status_waiting_for_data">Połączono, oczekiwanie na dane...</string>
+    <string name="status_raw_values_received">Połączono, odebrano wartości surowe</string>
 </resources>

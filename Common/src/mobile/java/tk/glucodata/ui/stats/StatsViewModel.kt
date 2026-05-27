@@ -23,6 +23,7 @@ import tk.glucodata.UiRefreshBus
 import tk.glucodata.data.HistoryRepository
 import tk.glucodata.data.calibration.CalibrationManager
 import tk.glucodata.drivers.ManagedSensorRuntime
+import tk.glucodata.drivers.anytime.AnytimeRegistry
 import tk.glucodata.ui.GlucosePoint
 import tk.glucodata.ui.DisplayValueResolver
 import tk.glucodata.ui.util.GlucoseFormatter
@@ -712,6 +713,7 @@ class StatsViewModel : ViewModel() {
     private fun maybeRefreshTemperaturePoints(serial: String, history: List<GlucosePoint>): List<TemperaturePoint> {
         val now = System.currentTimeMillis()
         val shouldRefresh = serial != cachedTemperatureSerial ||
+            (cachedTemperaturePoints.isEmpty() && history.isNotEmpty()) ||
             now - lastTemperatureRefreshMs > TEMPERATURE_REFRESH_INTERVAL_MS
 
         if (!shouldRefresh) {
@@ -761,6 +763,9 @@ class StatsViewModel : ViewModel() {
     }
 
     private fun readTemperaturePoints(serial: String, history: List<GlucosePoint>): List<TemperaturePoint> {
+        readAnytimeTemperaturePoints(serial, history).takeIf { it.isNotEmpty() }?.let {
+            return it
+        }
         return try {
             val tempRaw = Natives.getTemperatureDataByName(serial)
             if (tempRaw == null || tempRaw.isEmpty()) return emptyList()
@@ -787,6 +792,71 @@ class StatsViewModel : ViewModel() {
             Log.e(tag, "readTemperaturePoints failed", e)
             emptyList()
         }
+    }
+
+    private fun readAnytimeTemperaturePoints(serial: String, history: List<GlucosePoint>): List<TemperaturePoint> {
+        return try {
+            val context = Applic.app ?: return emptyList()
+            val sensorIds = resolveAnytimeTemperatureSensorIds(context, serial)
+            val records = sensorIds
+                .asSequence()
+                .map { AnytimeRegistry.loadTemperatureHistory(context, it) }
+                .firstOrNull { it.isNotEmpty() }
+                .orEmpty()
+            if (records.isEmpty()) return emptyList()
+
+            val firstTs = history.firstOrNull()?.timestamp ?: Long.MIN_VALUE
+            val lastTs = history.lastOrNull()?.timestamp ?: Long.MAX_VALUE
+            records.asSequence()
+                .filter { it.timestampMs > 0L }
+                .filter { history.isEmpty() || it.timestampMs in firstTs..lastTs }
+                .filter { it.temperatureC.isFinite() && it.temperatureC > -20f && it.temperatureC < 80f }
+                .distinctBy { it.timestampMs }
+                .sortedBy { it.timestampMs }
+                .map {
+                    TemperaturePoint(
+                        timestamp = it.timestampMs,
+                        temperatureCelsius = it.temperatureC
+                    )
+                }
+                .toList()
+        } catch (e: Throwable) {
+            Log.e(tag, "readAnytimeTemperaturePoints failed", e)
+            emptyList()
+        }
+    }
+
+    private fun resolveAnytimeTemperatureSensorIds(
+        context: android.content.Context,
+        serial: String
+    ): List<String> {
+        val candidates = LinkedHashSet<String>()
+        fun add(value: String?) {
+            value
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let(candidates::add)
+        }
+
+        add(serial)
+        add(SensorIdentity.resolveAppSensorId(serial))
+        add(SensorIdentity.resolveNativeSensorName(serial))
+        add(runCatching { Natives.resolveFullSensorName(serial) }.getOrNull())
+
+        candidates.toList().forEach { candidate ->
+            add(AnytimeRegistry.resolveCanonicalSensorId(context, candidate))
+        }
+
+        val known = AnytimeRegistry.persistedRecords(context)
+        known.firstOrNull { record ->
+            candidates.any { candidate ->
+                record.matchesId(candidate) ||
+                    record.sensorId.endsWith(candidate, ignoreCase = true) ||
+                    candidate.endsWith(record.sensorId, ignoreCase = true)
+            }
+        }?.let { add(it.sensorId) }
+
+        return candidates.toList()
     }
 
     private fun buildUiState(input: UiInput): StatsUiState {

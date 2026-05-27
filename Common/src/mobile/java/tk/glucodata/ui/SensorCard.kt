@@ -295,6 +295,7 @@ fun SensorCard(
     // AiDex Maintenance Dialogs
     var showAiDexClearDialog by remember { mutableStateOf(false) }
     var showSensorCalibrateDialog by remember { mutableStateOf(false) }
+    var showAnytimeClearCalibrationDialog by remember { mutableStateOf(false) }
     var showAiDexUnpairDialog by remember { mutableStateOf(false) }
     var showMqRestoreSheet by remember { mutableStateOf(false) }
     var showMqCalibrationSheet by remember { mutableStateOf(false) }
@@ -462,6 +463,24 @@ fun SensorCard(
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) { Text(stringResource(R.string.cancel)) }
+            }
+        )
+    }
+
+    if (showAnytimeClearCalibrationDialog) {
+        AlertDialog(
+            onDismissRequest = { showAnytimeClearCalibrationDialog = false },
+            title = { Text(stringResource(R.string.clear_calibrations_title)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.clearManagedSensorCalibration(sensor.serial)
+                    showAnytimeClearCalibrationDialog = false
+                }) { Text(stringResource(R.string.clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAnytimeClearCalibrationDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
             }
         )
     }
@@ -1489,6 +1508,9 @@ fun SensorCard(
                     if (sensor.vendorModel.isNotEmpty()) {
                         DataRow(stringResource(R.string.model), sensor.vendorModel)
                     }
+                    if (sensor.sensorDetailTelemetry.isNotBlank()) {
+                        DataRow(stringResource(R.string.anytime_sensor_telemetry), sensor.sensorDetailTelemetry)
+                    }
                     if (sensor.vendorFirmware.isNotEmpty()) {
                         val firmwareText = if (sensor.vendorFirmware.startsWith("v", ignoreCase = true)) {
                             sensor.vendorFirmware
@@ -2192,9 +2214,35 @@ fun SensorCard(
                         }
                     }
                 }
+
+                if (sensor.supportsClearCalibration) {
+                    FilledTonalButton(
+                        onClick = { showAnytimeClearCalibrationDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.clear_calibrations_title),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
 
-            if (!sensor.isAidex && !sensor.isSibionics2 && sensor.supportsHardwareReset) {
+            if (!sensor.isAidex && !sensor.isSibionics2 && !sensor.isAnytime && sensor.supportsHardwareReset) {
                 FilledTonalButton(
                     onClick = { showResetDialog = true },
                     enabled = sensor.isVendorConnected,

@@ -427,7 +427,6 @@ static void sendup(passhost_t *hostptr) {
     }
 
 std::vector<Backup::condvar_t*> active_receive;
-int active_receivenr=0;
 
 #include <chrono>
 using namespace std::chrono_literals;
@@ -440,8 +439,8 @@ void activereceivethread(int allindex,passhost_t *pass) {
         LOGGER("activereceivethread h(%d)<0\n", h);
         return;
     }
-    if(h >= active_receivenr) {
-        LOGGER("activereceivethread h(%d)>=active_receivenr(%zd)\n", h, active_receivenr);
+    if(static_cast<size_t>(h) >= active_receive.size()) {
+        LOGGER("activereceivethread h(%d)>=active_receive.size()(%zu)\n", h, active_receive.size());
         return;
     }
     if(!active_receive[h]) {
@@ -493,7 +492,7 @@ void activereceivethread(int allindex,passhost_t *pass) {
             }
             }
        LOGGER("before if(!active_receive[%d]) %p \n",h,active_receive[h]);
-       if(h>=active_receivenr||!active_receive[h]) {
+       if(static_cast<size_t>(h)>=active_receive.size()||!active_receive[h]) {
             LOGGER("active_receive[%d]==0, return\n",h);
             return;
           }

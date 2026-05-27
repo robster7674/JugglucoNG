@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import tk.glucodata.Applic
 import tk.glucodata.Natives
+import tk.glucodata.SuperGattCallback
 
 /**
  * Repository for loading and saving alert configurations.
@@ -20,6 +21,8 @@ object AlertRepository {
     private var hiddenLegacyAlertCleanupDone = false
     @Volatile
     private var defaultThresholdMigrationDone = false
+    @Volatile
+    private var cachedNativeLossWaitMinutes: Int? = null
     
     private val prefs: SharedPreferences by lazy {
         Applic.app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -135,8 +138,7 @@ object AlertRepository {
     private fun legacyDurationMinutesFallback(type: AlertType, base: AlertConfig): Int? {
         return when (type) {
             AlertType.LOSS -> {
-                val nativeSeconds = Natives.readalarmduration(type.id)
-                val nativeMinutes = if (nativeSeconds > 0) (nativeSeconds + 59) / 60 else 0
+                val nativeMinutes = readNativeLossWaitMinutes()
                 nativeMinutes.takeIf { it > 0 } ?: base.durationMinutes
             }
             else -> base.durationMinutes
@@ -144,9 +146,18 @@ object AlertRepository {
     }
 
     private fun applyLegacyOverrides(type: AlertType, base: AlertConfig): AlertConfig {
+        val durationKey = keyDuration(type)
+        val durationFromPrefs = if (prefs.contains(durationKey)) {
+            prefs.getInt(durationKey, 0).takeIf { it > 0 }
+        } else {
+            null
+        }
+        val durationMinutes = durationFromPrefs ?: legacyDurationMinutesFallback(type, base)
+        if (type == AlertType.LOSS && durationFromPrefs != null) {
+            writeNativeLossWaitMinutes(durationFromPrefs)
+        }
         return base.copy(
-            durationMinutes = prefs.getInt(keyDuration(type), legacyDurationMinutesFallback(type, base) ?: 0)
-                .takeIf { it > 0 },
+            durationMinutes = durationMinutes,
             forecastMinutes = prefs.getInt(keyForecast(type), base.forecastMinutes ?: 0)
                 .takeIf { it > 0 },
             deliveryMode = parseEnumPref(prefs.getString(keyDeliveryMode(type), null), base.deliveryMode),
@@ -168,6 +179,22 @@ object AlertRepository {
             retryIntervalMinutes = prefs.getInt(keyRetryInterval(type), 5),
             retryCount = prefs.getInt(keyRetryCount(type), 3)
         )
+    }
+
+    private fun readNativeLossWaitMinutes(): Int {
+        cachedNativeLossWaitMinutes?.let { return it }
+        return Natives.readalarmsuspension(AlertType.LOSS.id).toInt().also {
+            cachedNativeLossWaitMinutes = it
+        }
+    }
+
+    private fun writeNativeLossWaitMinutes(durationMinutes: Int) {
+        val waitMinutes = durationMinutes.coerceIn(1, Short.MAX_VALUE.toInt())
+        if (cachedNativeLossWaitMinutes == waitMinutes) {
+            return
+        }
+        Natives.writealarmsuspension(AlertType.LOSS.id, waitMinutes.toShort())
+        cachedNativeLossWaitMinutes = waitMinutes
     }
     
     /**
@@ -263,18 +290,13 @@ object AlertRepository {
                 config.enabled
             )
 
-            // Sync extra settings (DND, Duration, Sound) which are still per-ID in Natives
+            // Sync extra settings (DND, duration, sound) which are still per-ID in Natives
             Natives.setalarmdisturb(typeId, config.overrideDND)
 
-            // For LOSS (Type 4), 'alarmDuration' in Natives likely controls the Timeout (time until alarm),
-            // not the sound duration. So we sync the durationMinutes (converted to seconds).
-            // For others, it controls Sound Duration.
-            val durationValue = if (config.type == AlertType.LOSS) {
-                (config.durationMinutes ?: 30) * 60
-            } else {
-                sanitizeAlertDurationSeconds(config.alarmDurationSeconds)
+            if (config.type == AlertType.LOSS) {
+                writeNativeLossWaitMinutes(config.durationMinutes ?: AlertDefaults.MISSED_READING_MINUTES)
             }
-            Natives.writealarmduration(typeId, durationValue)
+            Natives.writealarmduration(typeId, sanitizeAlertDurationSeconds(config.alarmDurationSeconds))
             
             Natives.writering(
                 typeId,
@@ -283,6 +305,9 @@ object AlertRepository {
                 config.flashEnabled,
                 config.vibrationEnabled
             );
+            if (config.type == AlertType.LOSS && config.enabled) {
+                SuperGattCallback.glucosealarms?.setLossAlarm()
+            }
         } else if (typeId == AlertType.VERY_LOW.id || typeId == AlertType.VERY_HIGH.id ||
             typeId == AlertType.PRE_LOW.id || typeId == AlertType.PRE_HIGH.id) {
             Natives.setAlertConfig(

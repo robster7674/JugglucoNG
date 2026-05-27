@@ -142,7 +142,7 @@ fun injectMirrorJson(jsonstr: String, context: Context): Boolean {
 }
 
 private fun changeHostErrorMessage(context: Context, code: Int): String = when (code) {
-    -1 -> context.getString(R.string.portrange)
+    -1 -> context.getString(R.string.mirror_portrange)
     -2 -> context.getString(R.string.parseip)
     -3 -> context.getString(R.string.toomanyhosts)
     -4 -> context.getString(R.string.senthosts)

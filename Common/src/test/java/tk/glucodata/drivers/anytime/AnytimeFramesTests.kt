@@ -190,6 +190,41 @@ class AnytimeFramesTests {
     }
 
     @Test
+    fun parseWideRawSeriesRecordsAcceptsLegacyRawDumpOpcode() {
+        val frame = byteArrayOf(
+            0x0D,
+            0x93.toByte(),
+            0x00,
+            0x01,
+            0xB7.toByte(),
+            0x05,
+            0x5E,
+            0x49,
+            0x0A,
+            0x01,
+            0xC2.toByte(),
+            0x05,
+            0x64,
+            0x49,
+            0x19,
+            0x00,
+        )
+        frame[frame.lastIndex] = AnytimeFrames.sum(frame, 0, frame.lastIndex - 1)
+
+        val records = AnytimeFrames.parseWideRawSeriesRecords(frame)
+
+        assertEquals(2, records.size)
+        assertEquals(147, records[0].glucoseId)
+        assertEquals(4.39f, records[0].ibNa, 0.001f)
+        assertEquals(13.74f, records[0].iwNa, 0.001f)
+        assertEquals(33.10f, records[0].temperatureC, 0.001f)
+        assertEquals(148, records[1].glucoseId)
+        assertEquals(4.50f, records[1].ibNa, 0.001f)
+        assertEquals(13.80f, records[1].iwNa, 0.001f)
+        assertEquals(33.25f, records[1].temperatureC, 0.001f)
+    }
+
+    @Test
     fun inputBgRoundsToOfficialOneDecimalMmol() {
         assertEquals(
             listOf(0x09, 0x05, 0x06),

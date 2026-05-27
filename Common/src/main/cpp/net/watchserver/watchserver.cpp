@@ -882,13 +882,17 @@ static bool gzipnightstatus(recdata *outdata) {
 
 
 extern std::string_view getdeltaname(float rate);
-char * writebucket(char *outiter,const int index,const ScanData *val,const char *sensorname) {
-   const char * changelabel=getdeltaname(val->ch).data();
+char * writebucket(char *outiter,const int index,const ScanData *val,const sensorname_t *sensorname) {
+   std::string_view changelabel=getdeltaname(val->ch);
    auto mgdl=val->getmgdL();
    longlongtype mmsec=val->gettime()*1000LL;
    longlongtype frommsec=mmsec-1000LL*30;
    longlongtype tomsec=mmsec+1000LL*30;
-   return outiter+sprintf(outiter,R"({"mean":%d,"last":%d,"mills":%lld,"index":%d,"fromMills":%lld,"toMills":%lld,"sgvs":[{"_id":"%s#%d","mgdl":%d,"mills":%lld,"device":"Juggluco","direction":"%s","type":"sgv","scaled":%d}]},)",mgdl,mgdl,mmsec,index,frommsec,tomsec,sensorname,val->id,mgdl,mmsec,changelabel,mgdl);
+   outiter+=sprintf(outiter,R"({"mean":%d,"last":%d,"mills":%lld,"index":%d,"fromMills":%lld,"toMills":%lld,"sgvs":[{"_id":")",mgdl,mgdl,mmsec,index,frommsec,tomsec);
+   addjsonescaped(outiter,fixedsensorview(sensorname));
+   outiter+=sprintf(outiter,R"(#%d","mgdl":%d,"mills":%lld,"device":"Juggluco","direction":")",val->id,mgdl,mmsec);
+   addjsonescaped(outiter,changelabel);
+   return outiter+sprintf(outiter,R"(","type":"sgv","scaled":%d}]},)",mgdl);
 }
 
 //https://api/v1/entries/current
@@ -932,13 +936,15 @@ bool givenothing(recdata *outdata) {
 char *textitem(char *outiter,const ScanData *value,const char sep=9) {
    auto mgdL=value->getmgdL();
    time_t tim=value->gettime();
-   const char * changelabel=getdeltaname(value->ch).data();
+   std::string_view changelabel=getdeltaname(value->ch);
 //   *outiter++='"';
 //   outiter+=Tdatestring(tim,outiter);
         struct tm tmbuf;
    gmtime_r(&tim, &tmbuf);
         outiter+=sprintf(outiter,R"("%d-%02d-%02dT%02d:%02d:%02d.000Z")",tmbuf.tm_year+1900,tmbuf.tm_mon+1,tmbuf.tm_mday, tmbuf.tm_hour, tmbuf.tm_min,tmbuf.tm_sec);
-   outiter+=sprintf(outiter,R"(%c%lld%c%d%c"%s"%c"Juggluco")" "\r\n",sep,tim*1000LL,sep,mgdL,sep,changelabel,sep);
+   outiter+=sprintf(outiter,R"(%c%lld%c%d%c")",sep,tim*1000LL,sep,mgdL,sep);
+   addstrview(outiter,changelabel);
+   outiter+=sprintf(outiter,R"("%c"Juggluco")" "\r\n",sep);
    return outiter;
    }
 
@@ -1032,17 +1038,19 @@ static char *pebbleitem(bool mmolL,char *outiter,const ScanData *item) {
       outiter+=sprintf(outiter,"%.1f", item->getmmolL());
    else
       outiter+=sprintf(outiter,"%d", item->getmgdL());
-   return outiter+=sprintf(outiter,R"(","trend":%d,"direction":"%s","datetime":%lld},)",trend,getdeltanamefromindex(trend).data(),item->gettime()*1000LL);
+   outiter+=sprintf(outiter,R"(","trend":%d,"direction":")",trend);
+   addjsonescaped(outiter,getdeltanamefromindex(trend));
+   return outiter+sprintf(outiter,R"(","datetime":%lld},)",item->gettime()*1000LL);
    }
 
 char * givebuckets(char *start) {
    char *outiter=start;
    const char startbuckets[]=R"("buckets":[)";
    addar(outiter,startbuckets);
-   int interval=settings->data()->nightinterval;
+   int interval=getExchangeOutputIntervalSeconds();
 
    if(!getitems(outiter,4,0,UINT32_MAX,false,interval,[](char *outiter,int datit, const ScanData *iter,const sensorname_t *sensorname,const time_t starttime) {
-      return writebucket(outiter,datit,iter,sensorname->data());
+      return writebucket(outiter,datit,iter,sensorname);
    })) {
       return start;
    };
@@ -1143,7 +1151,6 @@ char *getdeltastr(char *start) {
       if(--iter<=first)
          return start;
       }
-   const char *sensorname= sens->shortsensorname()->data();
    const sensorname_t *shortsensorname=sens->shortsensorname();
    int timedif=4*62;
    auto nu=iter->gettime();
@@ -1168,9 +1175,12 @@ char *getdeltastr(char *start) {
          longlongtype prevmmsec=wastime*1000LL;
          int valueid=iter->getid();
          int elapsedMins=(nu-wastime)/60;
-         const char * changelabel=getdeltaname(iter->ch).data();
-         constexpr const char deltaformat[]=R"("delta":{"absolute":%d,"elapsedMins":%d,"interpolated":false,"mean5MinsAgo":%d,"times":{"recent":%lld,"previous":%lld},"mgdl":%d,"scaled":%d,"display":"%d","previous":{"mean":%d,"last":%d,"mills":%lld,"sgvs":[{"_id":"%s#%d","mgdl":%d,"mills":%lld,"device":"Juggluco","direction":"%s","type":"sgv","scaled":%d}]}},)";
-         return outiter+sprintf(outiter,deltaformat,diff,elapsedMins,prevmgdl,nowmmsec,prevmmsec,diff,diff,diff,prevmgdl,prevmgdl,prevmmsec,sensorname,valueid,prevmgdl,prevmmsec,changelabel,prevmgdl);
+         std::string_view changelabel=getdeltaname(iter->ch);
+         outiter+=sprintf(outiter,R"("delta":{"absolute":%d,"elapsedMins":%d,"interpolated":false,"mean5MinsAgo":%d,"times":{"recent":%lld,"previous":%lld},"mgdl":%d,"scaled":%d,"display":"%d","previous":{"mean":%d,"last":%d,"mills":%lld,"sgvs":[{"_id":")",diff,elapsedMins,prevmgdl,nowmmsec,prevmmsec,diff,diff,diff,prevmgdl,prevmgdl,prevmmsec);
+         addjsonescaped(outiter,fixedsensorview(shortsensorname));
+         outiter+=sprintf(outiter,R"(#%d","mgdl":%d,"mills":%lld,"device":"Juggluco","direction":")",valueid,prevmgdl,prevmmsec);
+         addjsonescaped(outiter,changelabel);
+         return outiter+sprintf(outiter,R"(","type":"sgv","scaled":%d}]}},)",prevmgdl);
 
          }
       --iter;
@@ -1201,10 +1211,13 @@ static char * givebgnow(char *start) {
       displayValue=iter;
    const int mgdl=displayValue->getmgdL();
    int valueid=iter->getid();
-   const char * changelabel=getdeltaname(iter->ch).data();
-   const char *sensorname= sens->shortsensorname()->data();
-   constexpr const char bgformat[]=R"("bgnow":{"mean":%d,"last":%d,"mills":%lld,"sgvs":[{"_id":"%s#%d","mgdl":%d,"mills":%lld,"device":"Juggluco","direction":"%s","type":"sgv","scaled":%d}]},)";
-   return start+=sprintf(start,bgformat,mgdl,mgdl,mmsectime,sensorname,valueid,mgdl,mmsectime,changelabel,mgdl);
+   std::string_view changelabel=getdeltaname(iter->ch);
+   const sensorname_t *sensorname= sens->shortsensorname();
+   start+=sprintf(start,R"("bgnow":{"mean":%d,"last":%d,"mills":%lld,"sgvs":[{"_id":")",mgdl,mgdl,mmsectime);
+   addjsonescaped(start,fixedsensorview(sensorname));
+   start+=sprintf(start,R"(#%d","mgdl":%d,"mills":%lld,"device":"Juggluco","direction":")",valueid,mgdl,mmsectime);
+   addjsonescaped(start,changelabel);
+   return start+sprintf(start,R"(","type":"sgv","scaled":%d}]},)",mgdl);
    }
 
 
@@ -1326,12 +1339,12 @@ static bool apiv1(const char *input,int leftlen,bool behead,bool json,bool hasse
          leftlen-=api.size();
          std::string_view sgvjson="/sgv.json";
          if(!memcmp(sgvjson.data(),posptr,sgvjson.size())) {
-            return sgvinterpret(posptr+sgvjson.size(),leftlen-sgvjson.size(),behead,true,origin,outdata);
+            return sgvinterpret(posptr+sgvjson.size(),leftlen-sgvjson.size(),behead,false,origin,outdata);
             }
          else {
             std::string_view api2=".json";
             if(!memcmp(api2.data(),posptr,api2.size())) {
-               return sgvinterpret(posptr+api2.size(),leftlen-api2.size(),behead,true,origin,outdata);
+               return sgvinterpret(posptr+api2.size(),leftlen-api2.size(),behead,false,origin,outdata);
                }
             else {
                const constexpr std::string_view api2="/sgv";
@@ -1349,10 +1362,7 @@ static bool apiv1(const char *input,int leftlen,bool behead,bool json,bool hasse
                      return givesgvtxt(posptr+ext1.size(),leftlen-ext1.size(),origin,outdata,',');
 
                   if(*posptr==' '||*posptr=='?') {
-                     if(json)
-                        return sgvinterpret(posptr,leftlen,false,true,origin,outdata);
-                     else
-                        return givesgvtxt(posptr,leftlen,origin,outdata,9);
+                     return sgvinterpret(posptr,leftlen,false,false,origin,outdata);
                      }
 
 
@@ -1372,10 +1382,7 @@ static bool apiv1(const char *input,int leftlen,bool behead,bool json,bool hasse
                     if(*posptr=='/')
                         ++posptr;
                       if(*posptr==' '||*posptr=='?') {
-                         if(json)
-                            return sgvinterpret(posptr,leftlen,false,true,origin,outdata);
-                         else
-                            return givesgvtxt(posptr,leftlen,origin,outdata,9);
+                         return sgvinterpret(posptr,leftlen,false,false,origin,outdata);
                          }
                      else {
                              wrongpath({input-7,static_cast<size_t>(leftlen+7)}, outdata);
@@ -2468,7 +2475,7 @@ class Sgvinterpret {
   public:
    Sgvinterpret(bool all=false,bool gmt=true,int datnr=24): alldata(all),gmt(gmt),datnr(datnr) {}
 
-   int interval=settings->data()->nightinterval;
+   int interval=getExchangeOutputIntervalSeconds();
    bool gmt;
    int datnr;
    uint32_t lowerend=0,higherend=INT32_MAX;
@@ -2481,9 +2488,9 @@ class Sgvinterpret {
 
    char *makedata(recdata *outdata ) const;
 private:
-   char *dontbrief(char *outiter,const char *name,const ScanData *iter) const ;
+   char *dontbrief(char *outiter,const sensorname_t *name,const ScanData *iter) const ;
    char *firstdata(char *outiter,time_t starttime,uint32_t dattime) const ;
-   char *writeitem(char *outiter,int datit, const ScanData *iter,const char *sensorname,const time_t starttime) const;
+   char *writeitem(char *outiter,int datit, const ScanData *iter,const sensorname_t *sensorname,const time_t starttime) const;
    //void mkjsonheader(char *outstart,char *outiter,const bool headonly,recdata *outdata) const;
    bool getv1entries(char *&outiter,const int  datnr) const;
 }; 
@@ -2545,8 +2552,10 @@ char *Sgvinterpret::makedata(recdata *outdata ) const {
       return nullptr;
    return output+152;
    }
-char *Sgvinterpret::dontbrief(char *outiter,const char *name,const ScanData *iter) const {
-   outiter+=sprintf(outiter,R"("_id":"%s#%d","device":"Juggluco","dateString":")", name,iter->id);
+char *Sgvinterpret::dontbrief(char *outiter,const sensorname_t *name,const ScanData *iter) const {
+   addar(outiter,R"("_id":")");
+   addjsonescaped(outiter,fixedsensorview(name));
+   outiter+=sprintf(outiter,R"(#%d","device":"Juggluco","dateString":")", iter->id);
    const char *startdate=outiter;
    int len=(gmt?oneTdatestringGMT:Tdatestring)(iter->t,outiter);
    outiter+=len;
@@ -2585,7 +2594,7 @@ char *Sgvinterpret::firstdata(char *outiter,time_t starttime,uint32_t dattime) c
        }
    return outiter;
    }
-char *Sgvinterpret::writeitem(char *outiter,int datit, const ScanData *iter,const char *sensorname,const time_t starttime) const {
+char *Sgvinterpret::writeitem(char *outiter,int datit, const ScanData *iter,const sensorname_t *sensorname,const time_t starttime) const {
    LOGGERWEB("writeitem %d\n",datit);
      if(datit>0) {
       *outiter++=',';
@@ -2597,7 +2606,9 @@ char *Sgvinterpret::writeitem(char *outiter,int datit, const ScanData *iter,cons
       }
     double delta= getdelta(iter->ch);
     std::string_view name=getdeltaname(iter->ch);
-    outiter+=sprintf(outiter,R"("date":%d000,"sgv":%d,"delta":%.3f,"direction":"%s","noise":1)",iter->t,iter->getmgdL(),delta,name.data());
+    outiter+=sprintf(outiter,R"("date":%d000,"sgv":%d,"delta":%.3f,"direction":")",iter->t,iter->getmgdL(),delta);
+    addjsonescaped(outiter,name);
+    addar(outiter,R"(","noise":1)");
        if (!briefmode) {
       longlongtype mgdL1000=iter->getmgdL()*1000;
       outiter+=sprintf(outiter,R"(,"filtered":%lld,"unfiltered":%lld,"rssi":100,"type":"sgv")",mgdL1000,mgdL1000);
@@ -2616,7 +2627,7 @@ char *Sgvinterpret::writeitem(char *outiter,int datit, const ScanData *iter,cons
 bool Sgvinterpret::getv1entries(char *&outiter,const int  datnr) const {
 
    return  ::getitems(outiter,datnr, lowerend,higherend,alldata, interval,[this](char *outiter,int datit, const ScanData *iter,const sensorname_t *sensorname,const time_t starttime)
-            {return writeitem(outiter, datit, iter,sensorname->data(), starttime);});
+            {return writeitem(outiter, datit, iter,sensorname, starttime);});
 
    }
 //{"_id":"6401c40addf76d1473eb7d02","timestamp":1677837282000,"eventType":"<none>","enteredBy":"xdrip pos:6.52","notes":"Swim → Aaps → nog meer","uuid":"6401c40addf76d1473eb7d02","created_at":"2023-03-03T09:54:42.000Z","sysTime":"2023-03-03T10:54:42.000+0100","utcOffset":0,"carbs":null,"insulin":null},

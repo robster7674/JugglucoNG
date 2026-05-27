@@ -44,6 +44,7 @@
     <string name="specifyreceiveordata">Өөр төхөөрөмж рүү илгээх өгөгдлийг заана уу</string>
     <string name="specifyip">IP хаяг заах шаардлагатай</string>
     <string name="portrange">Сүлжээний порт 1024–65535 хооронд байх ёстой</string>
+    <string name="mirror_portrange">Толин тусгалын порт 1–65535 хооронд байх ёстой</string>
     <string name="start">Эхлэх</string>
     <string name="now">Одоо</string>
     <string name="dontchangeamounts">Mirror хэмжээний мэдээллийг илгээнэ</string>
@@ -813,8 +814,8 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="status_connection_failed">Connection failed</string>
     <string name="status_connected">Connected</string>
     <string name="status_disconnected">Disconnected</string>
-    <string name="status_waiting_for_data">Connected, waiting for data...</string>
-    <string name="status_raw_values_received">Connected, raw values received</string>
+    <string name="status_waiting_for_data">Холбогдсон, өгөгдөл хүлээж байна...</string>
+    <string name="status_raw_values_received">Холбогдсон, түүхий утгууд хүлээн авсан</string>
     <string name="select_sensor_type">Select sensor type</string>
     <string name="choose_theme">Choose theme</string>
     <string name="sibionics_sensor_picker_desc">QR скан</string>
@@ -1060,7 +1061,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="aidex_probe_scanning">Scanning for AiDex devices...</string>
     <string name="alarmhelp">Alarm Help</string>
     <string name="alert_name_example">e.g. Dawn Phenomenon</string>
-    <string name="all_calibrations_cleared">All calibrations cleared</string>
+    <string name="all_calibrations_cleared">Бүх калибровкуудыг цэвэрлэв</string>
     <string name="anchor">Anchor</string>
     <string name="api_secret_label">API secret</string>
     <string name="appearance">Appearance</string>
@@ -1096,7 +1097,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Camera Permission</string>
     <string name="changestart">Changestart</string>
     <string name="choose_what_to_clear">Choose what to clear</string>
-    <string name="clear_calibrations_title">Clear calibrations</string>
+    <string name="clear_calibrations_title">Калибровкуудыг цэвэрлэх</string>
     <string name="clear_disabled_only">Clear disabled only</string>
     <string name="colorhelp">Color Help</string>
     <string name="conditions_optimal">Conditions optimal</string>
@@ -1182,6 +1183,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_error_with_code">Mirror error (%1$d)</string>
     <string name="mirror_settings_help_text">Configure send/receive and mirror server settings.</string>
     <string name="model">Model</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modes</string>
     <string name="nearbypermission">Nearby Permission</string>
     <string name="new_calibration_with_mode">New calibration (%1$s)</string>

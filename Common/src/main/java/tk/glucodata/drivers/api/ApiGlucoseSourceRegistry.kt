@@ -217,12 +217,29 @@ object ApiGlucoseSourceRegistry {
         }
         val previous = loadConfig(context)
         val nextSensorId = deriveSensorId(normalizedUrl, normalizedPreset, peerId)
-        if (previous.isUsable && !matchesSensorId(previous.sensorId, nextSensorId)) {
+        val sameSensor = previous.isUsable && matchesSensorId(previous.sensorId, nextSensorId)
+        if (previous.isUsable && !sameSensor) {
             stopSensor(previous.sensorId)
+        }
+        if (sameSensor && sourceRuntimeConfigChanged(
+                previous = previous,
+                preset = normalizedPreset,
+                url = normalizedUrl,
+                token = token.orEmpty(),
+                peerId = peerId.orEmpty(),
+                apiVersion = apiVersion.orEmpty().ifBlank { DEFAULT_VK_API_VERSION },
+                headers = headers.orEmpty(),
+                format = normalizedFormat,
+                pollSeconds = pollSeconds.coerceAtLeast(30)
+            )
+        ) {
+            stopSensor(nextSensorId)
         }
         if (!matchesSensorId(previous.sensorId, nextSensorId) ||
             previous.token != token.orEmpty() ||
-            previous.normalizedPreset != normalizedPreset
+            previous.peerId != peerId.orEmpty() ||
+            previous.normalizedPreset != normalizedPreset ||
+            previous.urlTemplate() != normalizedUrl
         ) {
             saveTelegramUpdateOffset(context, 0L)
         }
@@ -241,6 +258,29 @@ object ApiGlucoseSourceRegistry {
         connectSensor(context, nextSensorId)
         return nextSensorId
     }
+
+    private fun sourceRuntimeConfigChanged(
+        previous: Config,
+        preset: String,
+        url: String,
+        token: String,
+        peerId: String,
+        apiVersion: String,
+        headers: String,
+        format: String,
+        pollSeconds: Int,
+    ): Boolean =
+        previous.normalizedPreset != preset ||
+            previous.urlTemplate() != url ||
+            previous.token != token ||
+            previous.peerId != peerId ||
+            previous.apiVersion != apiVersion ||
+            previous.headers != headers ||
+            previous.normalizedFormat != format ||
+            previous.pollSeconds != pollSeconds
+
+    private fun Config.urlTemplate(): String =
+        url.ifBlank { defaultUrl(normalizedPreset) }
 
     fun disableSourceSensor(context: Context) {
         val config = loadConfig(context)

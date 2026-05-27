@@ -6,7 +6,6 @@ import android.os.HandlerThread
 import android.os.Looper
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
@@ -277,7 +276,7 @@ class NightscoutFollowerManager(
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout follower")
-            applyAuth(secret)
+            NightscoutFollowerRegistry.applyAuth(this, secret)
         }
         val code = connection.responseCode
         val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
@@ -297,20 +296,6 @@ class NightscoutFollowerManager(
             .sortedBy { it.timestampMs }
     }
 
-    private fun HttpURLConnection.applyAuth(secret: String) {
-        val trimmed = secret.trim()
-        if (trimmed.isEmpty()) return
-        if (trimmed.startsWith("Bearer ", ignoreCase = true)) {
-            setRequestProperty("Authorization", trimmed)
-            return
-        }
-        if (trimmed.startsWith("token=", ignoreCase = true)) {
-            setRequestProperty("Authorization", "Bearer ${trimmed.substringAfter('=')}")
-            return
-        }
-        setRequestProperty("api-secret", if (trimmed.matches(Regex("^[0-9a-fA-F]{40}$"))) trimmed else sha1(trimmed))
-    }
-
     private fun parseEntry(entry: JSONObject?): VirtualGlucoseSensorBridge.Reading? {
         entry ?: return null
         val mgdl = entry.optDouble("sgv", Double.NaN)
@@ -328,8 +313,4 @@ class NightscoutFollowerManager(
         )
     }
 
-    private fun sha1(value: String): String =
-        MessageDigest.getInstance("SHA-1")
-            .digest(value.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(Locale.US, it) }
 }

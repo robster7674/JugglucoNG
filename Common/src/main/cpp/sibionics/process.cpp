@@ -90,6 +90,23 @@ void logbytes(std::string_view text, const uint8_t *value, int vallen) {
 #endif
 #define saveSi3(sens, index, eventTime, save, value, temp, last)
 
+static bool saveRawOnlyPoll(SensorGlucoseData *sens, time_t eventTime,
+                            int streamIndex, int rawCurrent,
+                            uint16_t rawTemp) {
+  if (!sens || eventTime <= 0 || rawCurrent <= 0) {
+    return false;
+  }
+  sens->savestream(eventTime, streamIndex, 0, 0, 0.0f, rawCurrent, rawTemp);
+  LOGGER("SIprocess raw-only: index=%d raw=%d temp=%u itime=%ld\n",
+         streamIndex, rawCurrent, rawTemp, (long)eventTime);
+  if (backup) {
+    backup->wakebackup(Backup::wakestream);
+  }
+  extern void wakewithcurrent();
+  wakewithcurrent();
+  return true;
+}
+
 jlong SiContext::processData(SensorGlucoseData *sens, time_t nowsecs,
                              int8_t *data, int totlen, int sensorindex) {
   logbytes("SIprocess", (uint8_t *)data, totlen);
@@ -288,6 +305,12 @@ jlong SiContext::processData(SensorGlucoseData *sens, time_t nowsecs,
         sens->setSiIndex(maxid + 1);
       LOGGER("SIprocess failed: index=%d temp=%f value=%f numOfUnreceived=%d\n",
              index, temp, value, numOfUnreceived);
+      const bool savedRawOnly =
+          saveRawOnlyPoll(sens, eventTime, index, rawCurrent, rawTemp);
+      if (!numOfUnreceived && savedRawOnly) {
+        sens->receivehistory = nowsecs;
+        return 11LL;
+      }
       if (!numOfUnreceived && !(index % 5)) {
         sens->sensorerror = true;
         sens->sensorErrorTime = nowsecs;

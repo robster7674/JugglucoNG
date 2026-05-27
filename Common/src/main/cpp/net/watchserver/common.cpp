@@ -94,6 +94,28 @@ const ScanData *makeExportedScan(const SensorGlucoseData *sens,
         storage.g=mgdL;
     return &storage;
     }
+
+int getExchangeOutputIntervalSeconds() {
+    auto env=getenv();
+    if(env==nullptr||!ensureexportvalueclass(env))
+        return 0;
+    const static jmethodID intervalMethod = env->GetStaticMethodID(
+        exportvalueclass,
+        "getExchangeOutputIntervalSeconds",
+        "()I"
+    );
+    if(intervalMethod==nullptr) {
+        if(env->ExceptionCheck())
+            env->ExceptionClear();
+        return 0;
+        }
+    const int seconds=env->CallStaticIntMethod(exportvalueclass,intervalMethod);
+    if(env->ExceptionCheck()) {
+        env->ExceptionClear();
+        return 0;
+        }
+    return seconds>0?seconds:0;
+    }
 int mkv3streamid(char *outiter,const sensorname_t *name,int num) { 
 //LOGGER("sensorname=%s\n",name->data());
 const uint16_t *gets=reinterpret_cast<const uint16_t*>(name->data());

@@ -109,6 +109,12 @@ interface HistoryDao {
     suspend fun deleteReadingsAtTimestamp(serials: List<String>, timestamp: Long): Int
 
     @Query("""
+        DELETE FROM history_readings
+        WHERE sensorSerial IN (:serials) AND timestamp > :timestampExclusive
+    """)
+    suspend fun deleteReadingsForSensorsAfter(serials: List<String>, timestampExclusive: Long): Int
+
+    @Query("""
         SELECT COUNT(*) FROM history_deleted_readings
         WHERE sensorSerial = :sensorSerial AND timestamp = :timestamp
     """)

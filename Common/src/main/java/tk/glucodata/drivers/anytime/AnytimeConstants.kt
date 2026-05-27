@@ -156,6 +156,9 @@ object AnytimeConstants {
     /** Counted CT2.5/CT3A/CT4 raw-history series response. */
     const val RX_SERIES: Byte = 0x22
 
+    /** Legacy unsolicited CT2.5/CT3A/CT4 raw-history dump, same payload layout as RX_SERIES. */
+    const val RX_LEGACY_RAW_DUMP: Byte = 0x0D
+
     /** CT5 reconnect identity check response. */
     const val RX_CT5_CHECK_ID: Byte = 0x31
 
@@ -248,11 +251,11 @@ object AnytimeConstants {
 
     // ---- Algorithm fallback (linear K/R when libalgorithm-jni.so unavailable) ----
 
-    /** Final output clamp: mg/dL × 10 (matches official UI 17–400 mg/dL). */
-    const val ALGO_MGDL_MIN_TIMES10 = 17
+    /** Final output clamp: mg/dL × 10. Native output has been observed below 3.0 mmol/L. */
+    const val ALGO_MGDL_MIN_TIMES10 = 170
     const val ALGO_MGDL_MAX_TIMES10 = 4000
 
-    /** Mmol/L floor — official app's lower display bound. */
+    /** Linear fallback Auto floor only; Raw remains unclamped and native values bypass this. */
     const val ALGO_MMOL_FLOOR = 2.2
 
     // ---- Device family enum (`EDevice` equivalent) ----
@@ -452,6 +455,7 @@ object AnytimeConstants {
     const val PREF_REF_BG_APPLIED_GLUCOSE_ID_PREFIX = "anytime_ref_bg_applied_id_"
     const val PREF_REF_BG_HISTORY_PREFIX = "anytime_ref_bg_history_"
     const val PREF_RAW_HISTORY_PREFIX = "anytime_raw_history_"
+    const val PREF_TEMPERATURE_HISTORY_PREFIX = "anytime_temp_history_"
     const val PREF_CT5_CIPHER_KEY_PREFIX = "anytime_ct5_cipher_"
     const val PREF_CT5_RANDOM_B_PREFIX = "anytime_ct5_randomb_"
     const val PREF_CT5_TEMP_ID_PREFIX = "anytime_ct5_tempid_"

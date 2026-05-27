@@ -121,6 +121,7 @@ object AnytimeAlgorithm {
         val linear = computeLinear(record, k, r, family, voltageFlag)
         val calibration = qr?.takeIf { it.isFactoryCalibration }
         if (isNativeAvailable && calibration != null) {
+            var nativeFailure: Result? = null
             val window = recentRecords
                 .filter { it.glucoseId <= record.glucoseId }
                 .distinctBy { it.glucoseId }
@@ -138,11 +139,12 @@ object AnytimeAlgorithm {
                 rawMgdl = linear.rawMgdl,
             )?.let { mapped ->
                 if (isNativeResultUsable(mapped)) return mapped
+                nativeFailure = mapped
                 Log.w(
                     TAG,
                     "official latest algorithm returned invalid result: id=${mapped.glucoseId} " +
                             "mmol=${mapped.mmol} mgdl=${mapped.mgdl} trend=${mapped.trend} " +
-                            "err=${mapped.errorCode}; trying history/fallback"
+                            "err=${mapped.errorCode}; trying history algorithm"
                 )
             }
             tryOfficialHistory(
@@ -158,11 +160,12 @@ object AnytimeAlgorithm {
                 rawMgdl = linear.rawMgdl,
             )?.let { mapped ->
                 if (isNativeResultUsable(mapped)) return mapped
+                nativeFailure = mapped
                 Log.w(
                     TAG,
                     "official history algorithm returned invalid result: id=${mapped.glucoseId} " +
                             "mmol=${mapped.mmol} mgdl=${mapped.mgdl} trend=${mapped.trend} " +
-                            "err=${mapped.errorCode}; using fallback"
+                            "err=${mapped.errorCode}; keeping native failure"
                 )
             }
             tryLegacyNative(
@@ -178,13 +181,15 @@ object AnytimeAlgorithm {
                 rawMgdl = linear.rawMgdl,
             )?.let { mapped ->
                 if (isNativeResultUsable(mapped)) return mapped
+                nativeFailure = mapped
                 val msg = "legacy native algorithm returned invalid result: id=${mapped.glucoseId} " +
                         "mmol=${mapped.mmol} mgdl=${mapped.mgdl} trend=${mapped.trend} " +
-                        "err=${mapped.errorCode}; using linear fallback"
+                        "err=${mapped.errorCode}; keeping native failure"
                 if (mapped.glucoseId >= LEGACY_WARMUP_RECORDS) {
                     Log.w(TAG, msg)
                 }
             }
+            nativeFailure?.let { return it }
 
         } else if (isNativeAvailable && qr != null && !nativeSkippedNoFactoryLogged) {
             nativeSkippedNoFactoryLogged = true

@@ -72,16 +72,18 @@ class AlarmActivity : ComponentActivity() {
                 trendResult = model.trendResult,
                 timeText = model.timeText,
                 onSnooze = {
-                    Notify.stopalarm()
                     if (customAlertId != null) {
                         CustomAlertManager.snoozeAlert(customAlertId, model.snoozeMinutes)
+                        Notify.cancelCurrentRetrySession("alarm-activity-snooze-custom-before-stop")
                     } else {
-                        Notify.cancelCurrentRetrySession("alarm-activity-snooze")
                         AlertType.fromId(Notify.resolveAlertKind(model.alertType?.id ?: -1))?.let {
                             SnoozeManager.snooze(it, model.snoozeMinutes)
                             AlertStateTracker.resetState(it)
                         }
+                        Notify.cancelCurrentRetrySession("alarm-activity-snooze-before-stop")
                     }
+                    Notify.stopalarm()
+                    Notify.cancelCurrentRetrySession("alarm-activity-snooze-after-stop")
                     cancelAlarmNotification()
                     finish()
                 },
