@@ -165,7 +165,7 @@ flavorDimensions = ['wearos','libreVersion','SiBionics', 'DexCom','Google']
         libreOld {
     //******  Zet op rollout op 100% ******
             dimension 'libreVersion'
-            versionCode 900 //LIBRE2ONLY
+            versionCode 818 //LIBRE2ONLY
          //    versionName '10.3.10-no3'
             versionNameSuffix '-no3'
             buildConfigField 'int', 'libreVersion', '2'
