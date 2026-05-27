@@ -5,6 +5,10 @@
 #include "SensorGlucoseData.hpp"
 #include "fromjava.h"
 #include "logs.hpp"
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <inttypes.h>
 #include <jni.h>
 #include <memory>
@@ -38,10 +42,38 @@ extern void logbytes(std::string_view text, const uint8_t *value, int vallen);
 #endif
 
 extern JNIEnv *subenv;
+extern bool siInit2();
 
 #include "share/hexstr.hpp"
 
+static bool ensureV120DatahandleReady(const char *caller) {
+  if (V120SpiltData && v120RegisterKey && V120ApplyAuthentication &&
+      V120RawData && V120Activation && V120Reset && V120IsecUpdate) {
+    return true;
+  }
+  if (!siInit2()) {
+    LOGGER("%s: siInit2 failed\n", caller);
+    return false;
+  }
+  if (!V120SpiltData || !v120RegisterKey || !V120ApplyAuthentication ||
+      !V120RawData || !V120Activation || !V120Reset || !V120IsecUpdate) {
+    LOGGER("%s: missing V120 functions split=%p register=%p auth=%p raw=%p "
+           "activation=%p reset=%p isec=%p\n",
+           caller, reinterpret_cast<void *>(V120SpiltData),
+           reinterpret_cast<void *>(v120RegisterKey),
+           reinterpret_cast<void *>(V120ApplyAuthentication),
+           reinterpret_cast<void *>(V120RawData),
+           reinterpret_cast<void *>(V120Activation),
+           reinterpret_cast<void *>(V120Reset),
+           reinterpret_cast<void *>(V120IsecUpdate));
+    return false;
+  }
+  return true;
+}
+
 std::pair<std::unique_ptr<data_t>, int> getActivation(jlong timesec) {
+  if (!ensureV120DatahandleReady("getActivation"))
+    return {nullptr, 0};
   auto zero = data_t::newex(2);
   zero->clear();
   auto fill = data_t::newex(50);
@@ -59,6 +91,8 @@ std::pair<std::unique_ptr<data_t>, int> getActivation(jlong timesec) {
 extern "C" JNIEXPORT jbyteArray JNICALL fromjava(getSIActivation)(JNIEnv *env,
                                                                   jclass cl) {
   auto [cmd, len] = getActivation(time(nullptr));
+  if (!cmd || len <= 0)
+    return nullptr;
   jbyteArray uit = env->NewByteArray(len);
   env->SetByteArrayRegion(uit, 0, len, cmd.get()->data());
   return uit;
@@ -66,6 +100,8 @@ extern "C" JNIEXPORT jbyteArray JNICALL fromjava(getSIActivation)(JNIEnv *env,
 
 extern "C" JNIEXPORT jbyteArray JNICALL fromjava(getSIResetBytes)(JNIEnv *env,
                                                                   jclass cl) {
+  if (!ensureV120DatahandleReady("getSIResetBytes"))
+    return nullptr;
   auto zero = data_t::newex(2);
   zero->clear();
   auto fill = data_t::newex(1024);
@@ -97,6 +133,8 @@ j, int i3, byte[] bArr2, int i4);
 */
 
 static Data_t getIsecUpdate(jlong timesec) {
+  if (!ensureV120DatahandleReady("getIsecUpdate"))
+    return Data_t(0);
   Data_t zero(2);
   zero.clear();
   Data_t fill(50);
@@ -115,6 +153,8 @@ extern "C" JNIEXPORT jbyteArray JNICALL fromjava(getSItimecmd)(JNIEnv *env,
                                                                jclass cl) {
   auto cmd = getIsecUpdate(time(nullptr));
   int len = cmd.used;
+  if (len <= 0)
+    return nullptr;
   jbyte *dat = cmd.data->data();
   jbyteArray uit = env->NewByteArray(len);
   env->SetByteArrayRegion(uit, 0, len, dat);
@@ -151,7 +191,9 @@ static void keysRegistered(int hema) {
 
 std::array<jbyte, 6> deviceArray(const char address[]);
 
-auto makeauthbytes(const char *address, int hema) {
+Data_t makeauthbytes(const char *address, int hema) {
+  if (!ensureV120DatahandleReady("makeauthbytes"))
+    return Data_t(0);
   keysRegistered(hema);
   auto rev = deviceArray(address);
   Data_t jrev(rev);
@@ -177,9 +219,14 @@ extern "C" JNIEXPORT void JNICALL fromjava(setSensorptrSiSubtype)(
   }
   LOGGER("setSensorptrSiSubtype %d\n", type);
   auto *usedhist = reinterpret_cast<SensorGlucoseData *>(sensorptr);
-  usedhist->getinfo()->siType = type;
+  auto *info = usedhist->getinfo();
+  info->siType = type;
+  if (type == 3) {
+    info->notchinese = true;
+    LOGGER("setSensorptrSiSubtype %d forced notchinese\n", type);
+  }
   if (type != 3) {
-    usedhist->getinfo()->reset = false;
+    info->reset = false;
   }
   LOGGER("after usedhist->getinfo()->siType %d\n", type);
   sendsiScan(usedhist);
@@ -238,6 +285,10 @@ extern "C" JNIEXPORT jbyteArray JNICALL fromjava(siAuthBytes)(JNIEnv *env,
   }
   const auto address = usedhist->deviceaddress();
   const auto data = makeauthbytes(address, usedhist->siSubtype());
+  if (data.used <= 0) {
+    LOGGER("siAuthBytes failed len=%d\n", data.used);
+    return nullptr;
+  }
   const auto *dat = data.data->data();
   const int len = data.used;
   logbytes("siAuthBytes", (const uint8_t *)dat, len);
@@ -248,6 +299,8 @@ extern "C" JNIEXPORT jbyteArray JNICALL fromjava(siAuthBytes)(JNIEnv *env,
 
 extern Data_t askindexdata(jlong index);
 Data_t askindexdata(jlong index) {
+  if (!ensureV120DatahandleReady("askindexdata"))
+    return Data_t(0);
   Data_t dat(30);
   Data_t zero(2);
   int res = V120RawData(subenv, nullptr, 0, true, (jbyteArray)zero, index, 0,
@@ -264,12 +317,8 @@ Data_t askindexdata(jlong index) {
 static THREADLOCAL jlong sprintargs[2048];
 static THREADLOCAL int recordsprint = -1;
 #define VISIBLE __attribute__((__visibility__("default")))
-extern "C" int VISIBLE __vSprintf_chk(char *s, int flag, size_t slen,
-                                      const char *format, va_list args);
-extern "C" int VISIBLE __vsprintf_chk(char *s, int flag, size_t slen,
-                                      const char *format, va_list args);
-extern "C" int VISIBLE __vSprintf_chk(char *s, int flag, size_t slen,
-                                      const char *format, va_list args) {
+static int recordAndFormatSprintf(char *s, int flag, size_t slen,
+                                  const char *format, va_list args) {
   if (recordsprint >= 0) {
     va_list newargs;
     va_copy(newargs, args);
@@ -277,10 +326,24 @@ extern "C" int VISIBLE __vSprintf_chk(char *s, int flag, size_t slen,
     sprintargs[recordsprint++] = val;
     va_end(newargs);
   }
-  int res = __vsprintf_chk(s, flag, slen, format, args);
-  LOGGER(" __vsprintf_chk(%s (%p),%d,%zd,%s,va_list)=%d\n", s, s, flag, slen,
+  va_list formatArgs;
+  va_copy(formatArgs, args);
+  constexpr size_t unknownDestFallbackSize = 26;
+  const size_t formatSize =
+      slen == static_cast<size_t>(-1) ? unknownDestFallbackSize : slen;
+  int res = std::vsnprintf(s, formatSize, format, formatArgs);
+  va_end(formatArgs);
+  LOGGER(" __vsprintf_chk(%s (%p),%d,%zu,%s,va_list)=%d\n", s, s, flag, slen,
          format, res);
   return res;
+}
+extern "C" int VISIBLE __vSprintf_chk(char *s, int flag, size_t slen,
+                                      const char *format, va_list args) {
+  return recordAndFormatSprintf(s, flag, slen, format, args);
+}
+extern "C" int VISIBLE __vsprintf_chk(char *s, int flag, size_t slen,
+                                      const char *format, va_list args) {
+  return recordAndFormatSprintf(s, flag, slen, format, args);
 }
 #include <vector>
 extern int sitrend2abbott(int sitrend);
@@ -296,8 +359,158 @@ extern uint32_t makestarttime(int index, uint32_t eventTime);
 extern jlong glucoseback(uint32_t nu, uint32_t glval, float drate,
                          SensorGlucoseData *hist);
 
+static bool saveRawOnlyPoll(SensorGlucoseData *sens, time_t eventTime,
+                            int streamIndex, int rawCurrent,
+                            uint16_t rawTemp) {
+  if (!sens || eventTime <= 0 || rawCurrent <= 0) {
+    return false;
+  }
+  sens->savestream(eventTime, streamIndex, 0, 0, 0.0f, rawCurrent, rawTemp);
+  LOGGER("SIprocess raw-only: index=%d raw=%d temp=%u itime=%ld\n",
+         streamIndex, rawCurrent, rawTemp, (long)eventTime);
+  if (backup) {
+    backup->wakebackup(Backup::wakestream);
+  }
+  extern void wakewithcurrent();
+  wakewithcurrent();
+  return true;
+}
+
+static void anchorStartTimeFromCurrentPacket(SensorGlucoseData *sens,
+                                             sensor *sensor, int index,
+                                             time_t eventTime, int reindex) {
+  if (!sens || !sensor || reindex || index < 0 || eventTime <= 1598911200) {
+    return;
+  }
+  const time_t now = time(nullptr);
+  if (eventTime > now + 600) {
+    return;
+  }
+
+  const uint32_t packetStart = makestarttime(index, (uint32_t)eventTime);
+  if (packetStart <= 1598911200 || packetStart > (uint32_t)eventTime) {
+    return;
+  }
+
+  auto *info = sens->getinfo();
+  if (!info) {
+    return;
+  }
+  const uint32_t oldInfoStart = info->starttime;
+  const uint32_t oldListStart = sensor->starttime;
+  constexpr uint32_t startDriftTolerance = 15 * 60;
+  const bool shouldRepairInfo =
+      oldInfoStart == 0 || oldInfoStart > packetStart + startDriftTolerance;
+  const bool shouldRepairList =
+      oldListStart == 0 || oldListStart > packetStart + startDriftTolerance;
+  if (!shouldRepairInfo && !shouldRepairList) {
+    return;
+  }
+
+  if (shouldRepairInfo) {
+    info->starttime = packetStart;
+  }
+  if (shouldRepairList) {
+    sensor->starttime = packetStart;
+  }
+  sensors->setindices();
+  if (backup) {
+    backup->resendResetDevices(&updateone::sendstream);
+  }
+  LOGGER("SIprocess anchored starttime old=%u/%u new=%u index=%d itime=%ld\n",
+         oldInfoStart, oldListStart, packetStart, index, (long)eventTime);
+}
+
+static bool splitJsonValue(const char *json, const char *key, jlong &value) {
+  if (!json || !key) {
+    return false;
+  }
+
+  char needle[64];
+  const int needleLen =
+      std::snprintf(needle, sizeof(needle), "\"%s\":", key);
+  if (needleLen <= 0 || needleLen >= (int)sizeof(needle)) {
+    return false;
+  }
+
+  const char *pos = std::strstr(json, needle);
+  if (!pos) {
+    return false;
+  }
+  pos += needleLen;
+  while (*pos == ' ' || *pos == '\t') {
+    ++pos;
+  }
+
+  char *end = nullptr;
+  const long long parsed = std::strtoll(pos, &end, 10);
+  if (end == pos) {
+    return false;
+  }
+  value = (jlong)parsed;
+  return true;
+}
+
+static void splitJsonValueOrZero(const char *json, const char *key,
+                                 jlong &value) {
+  value = 0;
+  splitJsonValue(json, key, value);
+}
+
+static bool fillSplitFieldsFromJson(const char *json, int nritems, int *idat,
+                                    jlong *basear) {
+  if (!json || nritems != 1 || !idat || !basear) {
+    return false;
+  }
+
+  jlong ackType = 0;
+  if (splitJsonValue(json, "u16reply_ack_type", ackType)) {
+    jlong ackResult = 0;
+    jlong errorCode = 0;
+    if (!splitJsonValue(json, "u8reply_ack_resule", ackResult)) {
+      splitJsonValue(json, "u8reply_ack_result", ackResult);
+    }
+    splitJsonValue(json, "u8error_code", errorCode);
+
+    idat[0] = 49165;
+    idat[1] = 0;
+    basear[0] = ackType;
+    basear[1] = ackResult;
+    basear[2] = errorCode;
+    return true;
+  }
+
+  jlong index = 0;
+  jlong temp = 0;
+  jlong current = 0;
+  jlong itime = 0;
+  if (!splitJsonValue(json, "index", index) ||
+      !splitJsonValue(json, "temp", temp) ||
+      !splitJsonValue(json, "current", current) ||
+      !splitJsonValue(json, "itime", itime)) {
+    return false;
+  }
+
+  idat[0] = 49159;
+  idat[1] = 0;
+  basear[0] = index;
+  basear[1] = temp;
+  basear[2] = current;
+  splitJsonValueOrZero(json, "dump", basear[3]);
+  splitJsonValueOrZero(json, "reindex", basear[4]);
+  splitJsonValueOrZero(json, "glouse", basear[5]);
+  splitJsonValueOrZero(json, "trend", basear[6]);
+  splitJsonValueOrZero(json, "gwarn", basear[7]);
+  splitJsonValueOrZero(json, "twarn", basear[8]);
+  splitJsonValueOrZero(json, "cwarn", basear[9]);
+  basear[10] = itime;
+  return true;
+}
+
 jlong SiContext::processData2(SensorGlucoseData *sens, time_t nowsecs,
                               data_t *data, int sensorindex) {
+  if (!ensureV120DatahandleReady("processData2"))
+    return 2LL;
   const int datasize = data->size();
   logbytes("processData2 input: ", (const uint8_t *)data->data(), datasize);
   Gegs<jint> jiar(2);
@@ -305,7 +518,9 @@ jlong SiContext::processData2(SensorGlucoseData *sens, time_t nowsecs,
   Data_t bar2(2);
 
   memset(jiar.data->data(), '\0', sizeof(jint) * jiar.data->size());
+  memset(jsonuit.data->data(), '\0', jsonuit.data->size());
   memset(bar2.data->data(), '\0', bar2.data->size());
+  memset(sprintargs, '\0', sizeof(sprintargs));
   recordsprint = 0;
   int nritems =
       V120SpiltData(subenv, nullptr, 0, (jbyteArray)data, (jintArray)jiar,
@@ -315,8 +530,12 @@ jlong SiContext::processData2(SensorGlucoseData *sens, time_t nowsecs,
         V120SpiltData(subenv, nullptr, 0, (jbyteArray)data, (jintArray)jiar,
                       (jbyteArray)jsonuit, false, (jbyteArray)bar2, datasize);
   }
-  //   int recorded=recordsprint;
+  const int recorded = recordsprint;
   recordsprint = -1;
+  auto *json = reinterpret_cast<char *>(jsonuit.data->data());
+  if (jsonuit.data->size() > 0) {
+    json[jsonuit.data->size() - 1] = '\0';
+  }
 #ifndef NOLOG
   static THREADLOCAL uint32_t splitLogCounter = 0;
   const bool logSplitDetail = (nritems <= 0) || ((++splitLogCounter & 0x3F) == 0);
@@ -331,6 +550,15 @@ jlong SiContext::processData2(SensorGlucoseData *sens, time_t nowsecs,
   constexpr bool logSplitDetail = false;
 #endif
   int *idat = jiar.data->data();
+  jlong *basear = sprintargs;
+  const bool parsedSplitJson =
+      fillSplitFieldsFromJson(json, nritems, idat, basear);
+#ifndef NOLOG
+  if (parsedSplitJson && recorded <= 0) {
+    LOGGER("SIprocessData2 json fallback type=%d first=%" PRId64 "\n", idat[0],
+           basear[0]);
+  }
+#endif
 #ifndef NOLOG
   if (logSplitDetail) {
     {
@@ -346,7 +574,6 @@ jlong SiContext::processData2(SensorGlucoseData *sens, time_t nowsecs,
     }
   }
 #endif
-  jlong *basear = sprintargs;
   switch (idat[0]) {
   case 49159: {
     sensor *sensor = sensors->getsensor(sensorindex);
@@ -393,17 +620,11 @@ jlong SiContext::processData2(SensorGlucoseData *sens, time_t nowsecs,
           }
         }
       }
-      if (maxid < 10) {
-        const auto starttime = makestarttime(index, eventTime);
-        sens->getinfo()->starttime = starttime;
-        sensor->starttime = starttime;
-        sensors->setindices();
-        backup->resendResetDevices(&updateone::sendstream);
-      }
       double temp = basear[1] / 10.0;
       auto current = basear[2];
       double value = current / 10.0;
       int reindex = (int)basear[4];
+      anchorStartTimeFromCurrentPacket(sens, sensor, index, eventTime, reindex);
       const bool logPacket = (reindex == 0) || ((index & 0x3F) == 0);
       if (logPacket) {
         LOGGER("current=%" PRId64 " %.1f mmol/L\n", current, value);
@@ -547,6 +768,13 @@ jlong SiContext::processData2(SensorGlucoseData *sens, time_t nowsecs,
           sens->setSiIndex(maxid + 1);
         LOGGER("SIprocess failed: index=%d temp=%f value=%f reindex=%d\n",
                index, temp, value, reindex);
+        const bool savedRawOnly =
+            saveRawOnlyPoll(sens, eventTime, totalIndex, (int)current,
+                            (uint16_t)basear[1]);
+        if (!reindex && savedRawOnly) {
+          sens->receivehistory = nowsecs;
+          return 11LL;
+        }
         if (!reindex && !(index % 5)) {
           sens->sensorerror = true;
           sens->sensorErrorTime = nowsecs;

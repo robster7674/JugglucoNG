@@ -600,6 +600,51 @@ buildTypes {
     }
 }
 
+android.applicationVariants.all { variant ->
+    if (variant.name.startsWith("mobileLibre3SiDex")) {
+        def variantName = variant.name
+        def capName = variantName.capitalize()
+        def mergeJniTaskName = "merge${capName}JniLibFolders"
+        def mergedLibPath = "${buildDir}/intermediates/merged_jni_libs/${variantName}/${mergeJniTaskName}/out/armeabi-v7a/libdata-handle-lib.so"
+        def patchTask = tasks.register("patch${capName}SibionicsArmv7DataHandle") {
+            dependsOn tasks.named(mergeJniTaskName)
+            outputs.upToDateWhen { false }
+            doLast {
+                def libFile = new File(mergedLibPath)
+                if (!libFile.exists()) {
+                    return
+                }
+                // ARMv7 data-handle builds that import libc's lowercase fortify
+                // symbol can bypass libg's V120 sprintf shim.
+                byte[] from = "__vsprintf_chk".getBytes("US-ASCII")
+                byte[] to = "__vSprintf_chk".getBytes("US-ASCII")
+                byte[] bytes = libFile.bytes
+                int patched = 0
+                for (int i = 0; i <= bytes.length - from.length; i++) {
+                    boolean match = true
+                    for (int j = 0; j < from.length; j++) {
+                        if (bytes[i + j] != from[j]) {
+                            match = false
+                            break
+                        }
+                    }
+                    if (match) {
+                        System.arraycopy(to, 0, bytes, i, to.length)
+                        patched++
+                    }
+                }
+                if (patched > 0) {
+                    libFile.bytes = bytes
+                    logger.lifecycle("Patched ${variantName} ARMv7 Sibionics data-handle sprintf symbol")
+                }
+            }
+        }
+        tasks.named("merge${capName}NativeLibs").configure {
+            dependsOn patchTask
+        }
+    }
+}
+
 allprojects {
     tasks.withType(JavaCompile).tap {
         configureEach {

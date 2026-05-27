@@ -42,6 +42,7 @@ private:
   void release();
 
 public:
+  bool isNotchinese() const { return notchinese; }
   void setNotchinese(SensorGlucoseData *sens);
   SiContext(SensorGlucoseData *sens);
   jlong processData(SensorGlucoseData *sens, time_t nowsecs, int8_t *data,

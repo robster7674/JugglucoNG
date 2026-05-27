@@ -1562,6 +1562,39 @@ static void appendScanFallbackHistory(const SensorGlucoseData *hist,
   }
 }
 
+static bool rawOnlyPollValid(const ScanData &item, uint16_t rawVal,
+                             jlong starttime) {
+  return rawVal > 0 && item.t > starttime && item.id >= 0 &&
+         item.t > 1598911200u && item.t < 2145909600u;
+}
+
+static void appendPollHistory(const SensorGlucoseData *hist, jlong starttime,
+                              std::vector<jlong> &result) {
+  auto polls = hist->getPolldata();
+  static const double convfactordL = 18.0182;
+
+  for (const auto &item : polls) {
+    const uint16_t rawVal = hist->getRawForPoll(&item);
+    const bool autoValid = item.valid();
+    if ((!autoValid || item.t <= starttime) &&
+        !rawOnlyPollValid(item, rawVal, starttime)) {
+      continue;
+    }
+
+    jlong valAuto = 0;
+    if (autoValid) {
+      double cali = calibrateNow(hist, item);
+      valAuto = !isnan(cali) ? (jlong)(cali * 10) : (jlong)item.g * 10;
+    }
+
+    const jlong valRaw = rawVal > 0 ? (jlong)(rawVal * convfactordL) : 0;
+
+    result.push_back((jlong)item.t);
+    result.push_back(valAuto);
+    result.push_back(valRaw);
+  }
+}
+
 extern "C" JNIEXPORT jlongArray JNICALL
 fromjava(getGlucoseHistory)(JNIEnv *env, jclass cl, jlong starttime) {
   // Use the user-selected main sensor instead of getlaststream() which picks
@@ -1577,35 +1610,7 @@ fromjava(getGlucoseHistory)(JNIEnv *env, jclass cl, jlong starttime) {
   std::vector<jlong> result;
   result.reserve(900);
 
-  auto polls = hist->getPolldata();
-  static const double convfactordL = 18.0182;
-
-  for (const auto &item : polls) {
-    if (item.valid() && item.t > starttime) {
-      double cali = calibrateNow(hist, item);
-      jlong valAuto;
-      jlong valRaw;
-
-      // Auto Value
-      if (!isnan(cali)) {
-        valAuto = (jlong)(cali * 10);
-      } else {
-        valAuto = (jlong)item.g * 10;
-      }
-
-      // Raw Value
-      // Raw is stored in separate array 'rawpolls'
-      uint16_t rawVal = hist->getRawForPoll(&item);
-      // rawVal is 'current' (value*10 from eu.cpp)
-      // valRaw (mg/dL * 10) = (current / 10.0) * 18.0182 * 10 = current
-      // * 18.0182
-      valRaw = (jlong)(rawVal * convfactordL);
-
-      result.push_back((jlong)item.t);
-      result.push_back(valAuto);
-      result.push_back(valRaw);
-    }
-  }
+  appendPollHistory(hist, starttime, result);
 
   if (result.empty()) {
     appendScanFallbackHistory(hist, starttime, result);
@@ -1649,29 +1654,7 @@ extern "C" JNIEXPORT jlongArray JNICALL fromjava(getGlucoseHistoryForSensor)(
   std::vector<jlong> result;
   result.reserve(900);
 
-  auto polls = hist->getPolldata();
-  static const double convfactordL = 18.0182;
-
-  for (const auto &item : polls) {
-    if (item.valid() && item.t > starttime) {
-      double cali = calibrateNow(hist, item);
-      jlong valAuto;
-      jlong valRaw;
-
-      if (!isnan(cali)) {
-        valAuto = (jlong)(cali * 10);
-      } else {
-        valAuto = (jlong)item.g * 10;
-      }
-
-      uint16_t rawVal = hist->getRawForPoll(&item);
-      valRaw = (jlong)(rawVal * convfactordL);
-
-      result.push_back((jlong)item.t);
-      result.push_back(valAuto);
-      result.push_back(valRaw);
-    }
-  }
+  appendPollHistory(hist, starttime, result);
 
   if (result.empty()) {
     appendScanFallbackHistory(hist, starttime, result);
