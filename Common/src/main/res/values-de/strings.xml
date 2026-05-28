@@ -48,6 +48,7 @@
      <string name="specifyreceiveordata">Geben Sie „Empfangen von“ oder Daten an, die an ein anderes Gerät gesendet werden sollen</string>
      <string name="specifyip">Du solltest eine IP angeben</string>
      <string name="portrange">Port sollte zwischen 1024 und 65535 liegen</string>
+     <string name="mirror_portrange">Mirror-Ports müssen zwischen 1 und 65535 liegen</string>
      <string name="start">Start</string>
      <string name="now">Jetzt</string>
      <string name="dontchangeamounts">Klon sendet Mengen</string>
@@ -1066,7 +1067,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="camerapermission">Kameraerlaubnis</string>
     <string name="changestart">Changestart</string>
     <string name="choose_what_to_clear">Wählen Sie aus, was gelöscht werden soll</string>
-    <string name="clear_calibrations_title">Klare Kalibrierungen</string>
+    <string name="clear_calibrations_title">Kalibrierungen löschen</string>
     <string name="clear_disabled_only">Nur löschen, deaktiviert</string>
     <string name="colorhelp">Farbhilfe</string>
     <string name="conditions_optimal">Die Bedingungen für die Kalibrierung scheinen optimal zu sein</string>
@@ -1140,6 +1141,7 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="mirror_connection_settings_help_text">Verbindungseinstellungen für diesen Spiegelendpunkt.</string>
     <string name="mirror_settings_help_text">Konfigurieren Sie die Sende-/Empfangs- und Spiegelservereinstellungen.</string>
     <string name="model">Modell</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modi</string>
     <string name="nearbypermission">Genehmigung für die Nähe</string>
     <string name="new_custom_alert">Neue benutzerdefinierte Benachrichtigung</string>
@@ -1787,4 +1789,6 @@ Durch Drücken von „OK“ wird eine Verbindung auf diesem Telefon hergestellt 
     <string name="api_source_telegram_token">Telegram-Bot-Token</string>
     <string name="api_source_telegram_chat_ids">Erlaubte Chat-IDs</string>
     <string name="api_source_telegram_note">Telegram speichert Bot-Updates bis zu 24 Stunden. Gib eine oder mehrere Chat-IDs oder Benutzernamen ein, deren Bot-Nachrichten importiert werden dürfen.</string>
+    <string name="status_waiting_for_data">Verbunden, warte auf Daten...</string>
+    <string name="status_raw_values_received">Verbunden, Rohwerte empfangen</string>
 </resources>

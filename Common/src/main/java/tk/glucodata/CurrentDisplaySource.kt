@@ -28,10 +28,12 @@ object CurrentDisplaySource {
         val rawValue: Float,
         val sharedDisplayValue: Float,
         val sharedMgdl: Int,
+        val isMmol: Boolean,
         val displayValues: DisplayValues
     ) {
         val primaryValue: Float get() = displayValues.primaryValue
         val primaryStr: String get() = displayValues.primaryStr
+        val speechPrimaryStr: String get() = DisplayValueResolver.formatForSpeech(primaryValue, isMmol)
         val secondaryStr: String? get() = displayValues.secondaryStr
         val tertiaryStr: String? get() = displayValues.tertiaryStr
         val fullFormatted: String get() = displayValues.fullFormatted
@@ -408,6 +410,7 @@ object CurrentDisplaySource {
             rawValue = rawValue,
             sharedDisplayValue = sharedDisplayValue,
             sharedMgdl = sharedMgdl,
+            isMmol = isMmol,
             displayValues = displayValues
         )
     }

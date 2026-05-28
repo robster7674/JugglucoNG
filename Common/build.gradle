@@ -88,7 +88,7 @@ android {
         //compileSdk 36
         applicationId "cloud.glucodroid"
 
-         versionName '0.2.0-Alpha'
+         versionName '0.9.9-Alpha'
 //    multiDexEnabled true
 
         buildConfigField 'String', 'BUILD_TIME', 'new java.text.SimpleDateFormat("HH:mm:ss dd-MMM-yyyy").format(new java.util.Date(' + System.currentTimeMillis() + 'L))'
@@ -165,7 +165,7 @@ flavorDimensions = ['wearos','libreVersion','SiBionics', 'DexCom','Google']
         libreOld {
     //******  Zet op rollout op 100% ******
             dimension 'libreVersion'
-            versionCode 818 //LIBRE2ONLY
+            versionCode 900 //LIBRE2ONLY
          //    versionName '10.3.10-no3'
             versionNameSuffix '-no3'
             buildConfigField 'int', 'libreVersion', '2'
@@ -318,7 +318,7 @@ buildTypes {
         releasedub {
             versionNameSuffix 'DUB'
         applicationIdSuffix ".dub"
-            resValue "string", "app_name", "JugglucoNG Dub"
+            resValue "string", "app_name", "GlucoDroid Dub"
             signingConfig signingConfigs.alg
             minifyEnabled true
         shrinkResources true
@@ -341,7 +341,7 @@ buildTypes {
         releasedub2 {
             versionNameSuffix 'DUB2'
         applicationIdSuffix ".dub2"
-            resValue "string", "app_name", "JugglucoNG Dub 2"
+            resValue "string", "app_name", "GlucoDroid Dub 2"
             signingConfig signingConfigs.alg
             minifyEnabled true
         shrinkResources true
@@ -561,8 +561,8 @@ buildTypes {
         abortOnError false
     }
     dependenciesInfo {
-        includeInApk true
-        includeInBundle true
+        includeInApk false
+        includeInBundle false
     }
     compileSdkVersion 'android-36.1'
     buildToolsVersion '36.1.0'
@@ -620,6 +620,51 @@ buildTypes {
                 variant.enabled = false
             }
         })
+    }
+}
+
+android.applicationVariants.all { variant ->
+    if (variant.name.startsWith("mobileLibre3SiDex")) {
+        def variantName = variant.name
+        def capName = variantName.capitalize()
+        def mergeJniTaskName = "merge${capName}JniLibFolders"
+        def mergedLibPath = "${buildDir}/intermediates/merged_jni_libs/${variantName}/${mergeJniTaskName}/out/armeabi-v7a/libdata-handle-lib.so"
+        def patchTask = tasks.register("patch${capName}SibionicsArmv7DataHandle") {
+            dependsOn tasks.named(mergeJniTaskName)
+            outputs.upToDateWhen { false }
+            doLast {
+                def libFile = new File(mergedLibPath)
+                if (!libFile.exists()) {
+                    return
+                }
+                // ARMv7 data-handle builds that import libc's lowercase fortify
+                // symbol can bypass libg's V120 sprintf shim.
+                byte[] from = "__vsprintf_chk".getBytes("US-ASCII")
+                byte[] to = "__vSprintf_chk".getBytes("US-ASCII")
+                byte[] bytes = libFile.bytes
+                int patched = 0
+                for (int i = 0; i <= bytes.length - from.length; i++) {
+                    boolean match = true
+                    for (int j = 0; j < from.length; j++) {
+                        if (bytes[i + j] != from[j]) {
+                            match = false
+                            break
+                        }
+                    }
+                    if (match) {
+                        System.arraycopy(to, 0, bytes, i, to.length)
+                        patched++
+                    }
+                }
+                if (patched > 0) {
+                    libFile.bytes = bytes
+                    logger.lifecycle("Patched ${variantName} ARMv7 Sibionics data-handle sprintf symbol")
+                }
+            }
+        }
+        tasks.named("merge${capName}NativeLibs").configure {
+            dependsOn patchTask
+        }
     }
 }
 

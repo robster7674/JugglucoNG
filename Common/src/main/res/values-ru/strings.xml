@@ -197,6 +197,7 @@
     <string name="pitch">Тональность</string>
     <string name="port">Порт</string>
     <string name="portrange">Порт должен находиться в диапазоне от 1024 до 65535</string>
+    <string name="mirror_portrange">Порты зеркалирования должны быть в диапазоне от 1 до 65535</string>
     <string name="privatekey">Приватный ключ</string>
     <string name="quantity">Порция</string>
     <string name="rapidinsulin">Быстрый инсулин</string>
@@ -1064,7 +1065,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Разрешение камеры</string>
     <string name="changestart">Начало изменений</string>
     <string name="choose_what_to_clear">Выберите, что очистить</string>
-    <string name="clear_calibrations_title">Четкие калибровки</string>
+    <string name="clear_calibrations_title">Очистить калибровки</string>
     <string name="clear_disabled_only">Очистить только выключенные</string>
     <string name="colorhelp">Цветовая помощь</string>
     <string name="conditions_optimal">Условия оптимальные</string>
@@ -1138,6 +1139,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Настройки подключения для этой конечной точки зеркала.</string>
     <string name="mirror_settings_help_text">Настройте параметры отправки/получения и зеркального сервера.</string>
     <string name="model">Модель</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Режимы</string>
     <string name="nearbypermission">Разрешение поблизости</string>
     <string name="new_custom_alert">Новое персонализированное оповещение</string>
@@ -1792,4 +1794,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_token">Токен Telegram-бота</string>
     <string name="api_source_telegram_chat_ids">Разрешённые chat ID</string>
     <string name="api_source_telegram_note">Telegram хранит обновления бота до 24 часов. Укажите один или несколько chat ID/имён пользователей, сообщения которых можно импортировать.</string>
+    <string name="status_waiting_for_data">Подключено, ожидание данных...</string>
+    <string name="status_raw_values_received">Подключено, получены сырые значения</string>
 </resources>

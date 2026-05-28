@@ -1044,6 +1044,10 @@ public:
         // youngsensorsecs)
         if (thishist->hasData(nu)) {
           return true;
+        } else if (thishist->isSibionics() && thishist->hasSensorError(nu)) {
+          LOGGER("%s expired with recent Sibionics sensor error; keeping active\n",
+                 sensorlist()[ind].name);
+          return true;
         } else {
           LOGGER("%s finished was %d set to 1\n", sensorlist()[ind].name,
                  sensorlist()[ind].finished);
@@ -1151,6 +1155,10 @@ public:
             continue;
           }
 
+          if (hist->isSibionics() && hist->hasSensorError(nu)) {
+            out.push_back(i);
+            continue;
+          }
           const auto sensmax = hist->lastused();  // Use actual last data time, not expected max time
           if (sensmax <= oldsecs) {
             LOGGER("blueactive %s old %u\n", showsensorname(i), sensmax);

@@ -702,11 +702,18 @@ object AnytimeFrames {
      * Parse `pullGlucoseRequest_series_CT2_5(id, count)` responses:
      * `{0x22, startIdLo, startIdHi, N * [ibHi, ibLo, iwHi, iwLo, t+40, tFrac], sum}`.
      * Official parser accepts both 0x22 variable-length frames and a 244-byte 0x0D
-     * legacy dump; this driver requests only the explicit 0x22 counted form.
+     * legacy dump; this driver requests only the explicit 0x22 counted form, but
+     * CT4 transmitters can still push 0x0D dumps unsolicited after a live record.
      */
     @JvmStatic
     fun parseWideRawSeriesRecords(bytes: ByteArray): List<AnytimeRawRecord> {
-        if (bytes.size < 4 || bytes[0] != AnytimeConstants.RX_SERIES || !verifySum(bytes)) return emptyList()
+        val opcode = bytes.firstOrNull()
+        if (bytes.size < 4 ||
+            (opcode != AnytimeConstants.RX_SERIES && opcode != AnytimeConstants.RX_LEGACY_RAW_DUMP) ||
+            !verifySum(bytes)
+        ) {
+            return emptyList()
+        }
         val startId = (bytes[1].toInt() and 0xFF) or ((bytes[2].toInt() and 0xFF) shl 8)
         val payloadEndExclusive = bytes.size - 1
         if (payloadEndExclusive <= 3) return emptyList()
@@ -850,7 +857,7 @@ object AnytimeFrames {
             sensorAgeReadings = sensorAge,
             workingElectrodeCurrentNa = iw,
             batteryVolts = volts,
-            isHealthy = failure == null,
+            isHealthy = failure == null || failure == AnytimeCheckStatus.CheckFailure.LOW_BATTERY,
             failure = failure,
         )
     }

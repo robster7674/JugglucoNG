@@ -48,6 +48,7 @@ object AnytimeProfileResolver {
         }
         val lowVolts = when (entry.family) {
             AnytimeConstants.Family.CT2_5 -> AnytimeConstants.BATTERY_LOW_VOLTS_CT2_5
+            AnytimeConstants.Family.CT4 -> AnytimeConstants.BATTERY_LOW_VOLTS_CT4
             AnytimeConstants.Family.CT3_PLUS,
             AnytimeConstants.Family.CT3_YUWELL,
             AnytimeConstants.Family.CT3_ULTRASONIC -> AnytimeConstants.BATTERY_LOW_VOLTS_CT3_A

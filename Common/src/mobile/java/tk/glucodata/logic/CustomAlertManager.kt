@@ -60,11 +60,10 @@ object CustomAlertManager {
         // sensor sample timestamp. A delayed/stale reading should not fire outside the
         // user's currently selected alert window just because the sample itself was older.
         val evaluationMs = System.currentTimeMillis()
-        val evaluationMinutes = ((evaluationMs / 60000L) % (24 * 60)).toInt()
 
         val activeWindowConfigs = allAlerts.filter { config ->
             if (!config.enabled) return@filter false
-            if (!config.isActiveTime(evaluationMinutes)) return@filter false
+            if (!config.isActiveAt(evaluationMs)) return@filter false
             true
         }
 
@@ -294,8 +293,7 @@ object CustomAlertManager {
             }
 
             val now = System.currentTimeMillis()
-            val readingMinutes = ((now / 60000L) % (24 * 60)).toInt()
-            if (!refreshedConfig.enabled || !refreshedConfig.isActiveTime(readingMinutes) || now < refreshedConfig.snoozedUntil || dismissedMap.contains(alertId)) {
+            if (!refreshedConfig.enabled || !refreshedConfig.isActiveAt(now) || now < refreshedConfig.snoozedUntil || dismissedMap.contains(alertId)) {
                 clearActiveSessionLocked("retry-not-allowed:$alertId")
                 return
             }

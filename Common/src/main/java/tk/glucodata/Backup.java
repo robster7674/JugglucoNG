@@ -294,7 +294,7 @@ public class Backup {
 
 static public String changehostError(MainActivity act,int pos) {
             String mess= switch (pos) {
-               case -1 : yield act.getString(R.string.portrange);
+               case -1 : yield act.getString(R.string.mirror_portrange);
                case -2 : yield act.getString(R.string.parseip);
                case -3 : yield act.getString(R.string.toomanyhosts);
                case -4 : yield act.getString(R.string.senthosts);

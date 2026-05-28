@@ -95,6 +95,15 @@ object HistorySyncAccess {
             )
         }.getOrNull()
     }
+    private val deleteReadingsAfterMethod by lazy {
+        runCatching {
+            repositoryHolder?.getMethod(
+                "deleteReadingsForSensorAfterBlocking",
+                String::class.java,
+                Long::class.javaPrimitiveType
+            )
+        }.getOrNull()
+    }
     private val aidexSourceValue by lazy {
         runCatching {
             repositoryHolder?.getField("GLUCODATA_SOURCE_AIDEX")?.getInt(null)
@@ -335,4 +344,22 @@ object HistorySyncAccess {
         }.getOrDefault(LongArray(0))
     }
 
+    @JvmStatic
+    fun deleteReadingsForSensorAfter(sensorSerial: String?, timestampExclusive: Long): Int {
+        if (sensorSerial.isNullOrBlank() || timestampExclusive <= 0L) return 0
+        val method = deleteReadingsAfterMethod
+        if (method == null) {
+            Log.w(TAG, "deleteReadingsForSensorAfter unavailable for serial=$sensorSerial")
+            return 0
+        }
+        return runCatching {
+            (method.invoke(null, sensorSerial, timestampExclusive) as? Int) ?: 0
+        }.onFailure {
+            Log.w(
+                TAG,
+                "deleteReadingsForSensorAfter failed for serial=$sensorSerial after=$timestampExclusive",
+                it
+            )
+        }.getOrDefault(0)
+    }
 }

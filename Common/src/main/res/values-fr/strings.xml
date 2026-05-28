@@ -48,6 +48,7 @@
 <string name="specifyreceiveordata">Specifier \'Recevoir de\' ou données à envoyer à l\'autre appareil</string>
 <string name="specifyip">Vous devez spécifier une IP</string>
 <string name="portrange">Les ports réseau doivent être entre 1024 et 65535</string>
+<string name="mirror_portrange">Les ports du miroir doivent être entre 1 et 65535</string>
 <string name="start">Démarrer</string>
 <string name="now">Maintenant</string>
 <string name="dontchangeamounts">Qtés. reçues du miroir</string>
@@ -1103,6 +1104,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Paramètres de connexion pour ce point de terminaison miroir.</string>
     <string name="mirror_settings_help_text">Configurez les paramètres d\'envoi/réception et du serveur miroir.</string>
     <string name="model">Modèle</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modes</string>
     <string name="retry_constantly">En continu</string>
     <string name="retry_forever">Répéter sans fin</string>
@@ -1755,4 +1757,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_token">Jeton du bot Telegram</string>
     <string name="api_source_telegram_chat_ids">ID de chat autorisés</string>
     <string name="api_source_telegram_note">Telegram conserve les mises à jour du bot jusqu’à 24 heures. Saisissez un ou plusieurs ID de chat ou noms d’utilisateur dont les messages au bot peuvent être importés.</string>
+    <string name="status_waiting_for_data">Connecté, en attente de données...</string>
+    <string name="status_raw_values_received">Connecté, valeurs brutes reçues</string>
 </resources>

@@ -90,6 +90,44 @@ class AnytimeHistoryBackfillStateTests {
         assertTrue(buffer.drain().isEmpty())
     }
 
+    @Test
+    fun restoredCursorFallsBackToCachedRawTailWhenPrefIsAhead() {
+        assertEquals(
+            687,
+            sanitizeRestoredGlucoseId(
+                persistedLastId = 6_841,
+                cachedRawMaxId = 687,
+                rollbackThreshold = 48,
+            )
+        )
+        assertEquals(
+            720,
+            sanitizeRestoredGlucoseId(
+                persistedLastId = 720,
+                cachedRawMaxId = 687,
+                rollbackThreshold = 48,
+            )
+        )
+    }
+
+    @Test
+    fun liveIdRollbackStartsNewSensorSession() {
+        assertTrue(
+            liveIdLooksRolledBack(
+                liveId = 491,
+                previousMaxId = 6_841,
+                rollbackThreshold = 48,
+            )
+        )
+        assertFalse(
+            liveIdLooksRolledBack(
+                liveId = 727,
+                previousMaxId = 729,
+                rollbackThreshold = 48,
+            )
+        )
+    }
+
     private fun result(
         glucoseId: Int,
         source: AnytimeAlgorithm.Source,

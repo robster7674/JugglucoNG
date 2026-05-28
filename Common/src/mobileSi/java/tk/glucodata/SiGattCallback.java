@@ -393,6 +393,10 @@ public class SiGattCallback extends SuperGattCallback {
 
    @SuppressLint("MissingPermission")
    private boolean write2(byte[] bytes) {
+      if (bytes == null || bytes.length == 0) {
+         Log.e(LOG_ID, "write2 skipped empty command");
+         return false;
+      }
       if (service2 == null) {
          disconnect();
          return false;
@@ -524,6 +528,14 @@ public class SiGattCallback extends SuperGattCallback {
          scheduleHistoryUiRefresh();
          return;
        }
+      if (res == 11L) {
+         if (constatstatusstr != null &&
+             constatstatusstr.equals(Applic.app.getString(R.string.status_waiting_for_data))) {
+            constatstatusstr = Applic.app.getString(R.string.status_raw_values_received);
+         }
+         scheduleHistoryUiRefresh();
+         return;
+      }
       if (res == 4L) {
          Applic.app.getHandler().postDelayed(() -> {
             authenticate();

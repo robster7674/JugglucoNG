@@ -213,7 +213,7 @@ fun DebugSettingsScreen(navController: NavController) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .background(Color(0xFF121212), RoundedCornerShape(8.dp))
+                    .background((MaterialTheme.colorScheme.secondaryContainer), RoundedCornerShape(8.dp))
                     .padding(8.dp)
                     .drawWithContent {
                         drawContent()

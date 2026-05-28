@@ -48,6 +48,7 @@
     <string name="specifyreceiveordata">Specifica \'Ricevi da\' o dati da inviare a un altro dispositivo</string>
     <string name="specifyip">Devi specificare un IP</string>
     <string name="portrange">La port deve essere tra 1024 e 65535</string>
+    <string name="mirror_portrange">Le porte di mirroring devono essere tra 1 e 65535</string>
     <string name="start">Inizio</string>
     <string name="now">Ora</string>
     <string name="dontchangeamounts">Non modificare i valori</string>
@@ -1018,7 +1019,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Autorizzazione della fotocamera</string>
     <string name="changestart">Cambia inizio</string>
     <string name="choose_what_to_clear">Scegli cosa cancellare</string>
-    <string name="clear_calibrations_title">Calibrazioni chiare</string>
+    <string name="clear_calibrations_title">Cancella calibrazioni</string>
     <string name="clear_disabled_only">Cancella solo disabilitato</string>
     <string name="colorhelp">Aiuto sul colore</string>
     <string name="conditions_optimal">Le condizioni sembrano ottimali per la calibrazione</string>
@@ -1087,6 +1088,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Impostazioni di connessione per questo endpoint mirror.</string>
     <string name="mirror_settings_help_text">Configurare le impostazioni di invio/ricezione e del server mirror.</string>
     <string name="model">Modello</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Modalità</string>
     <string name="retry_constantly">Continuamente</string>
     <string name="retry_forever">Ripeti per sempre</string>
@@ -1739,4 +1741,6 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="api_source_telegram_token">Token bot Telegram</string>
     <string name="api_source_telegram_chat_ids">ID chat consentiti</string>
     <string name="api_source_telegram_note">Telegram conserva gli aggiornamenti del bot fino a 24 ore. Inserisci uno o più ID chat o nomi utente i cui messaggi bot possono essere importati.</string>
+    <string name="status_waiting_for_data">Connesso, in attesa dei dati...</string>
+    <string name="status_raw_values_received">Connesso, valori grezzi ricevuti</string>
 </resources>

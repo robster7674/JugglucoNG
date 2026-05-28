@@ -279,7 +279,7 @@ class NightscoutFollowerManager(
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "JugglucoNG Nightscout follower")
-            applyAuth(secret)
+            NightscoutFollowerRegistry.applyAuth(this, secret)
         }
         val code = connection.responseCode
         val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
@@ -316,6 +316,7 @@ class NightscoutFollowerManager(
             Natives.wakebackup()
         }.onFailure { Log.stack(TAG, "mirrorToNative", it) }
     }
+
 
     private fun parseEntry(entry: JSONObject?): VirtualGlucoseSensorBridge.Reading? {
         entry ?: return null

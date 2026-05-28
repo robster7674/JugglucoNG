@@ -158,6 +158,16 @@ class HistoryRepository(context: Context = Applic.app) {
                     .toLongArray()
             }
         }
+
+        @JvmStatic
+        fun deleteReadingsForSensorAfterBlocking(sensorSerial: String, timestampExclusive: Long): Int {
+            val resolvedSerial = sensorSerial.takeIf { it.isNotBlank() }
+                ?: return 0
+            if (timestampExclusive <= 0L) return 0
+            return kotlinx.coroutines.runBlocking {
+                HistoryRepository().deleteReadingsForSensorAfter(resolvedSerial, timestampExclusive)
+            }
+        }
         
         /**
          * Blocking version for Notify.java that returns tk.glucodata.GlucosePoint.
@@ -1105,6 +1115,26 @@ class HistoryRepository(context: Context = Applic.app) {
                 removedCount
             } catch (e: Exception) {
                 Log.e(TAG, "Error deleting reading at $timestamp for $sensorSerial", e)
+                0
+            }
+        }
+    }
+
+    suspend fun deleteReadingsForSensorAfter(sensorSerial: String, timestampExclusive: Long): Int {
+        if (timestampExclusive <= 0L || sensorSerial.isBlank()) return 0
+        val serials = resolveQuerySensorSerials(sensorSerial).ifEmpty { listOf(sensorSerial) }
+        if (serials.isEmpty()) return 0
+
+        return withContext(Dispatchers.IO) {
+            try {
+                val removedCount = dao.deleteReadingsForSensorsAfter(serials, timestampExclusive)
+                if (removedCount > 0) {
+                    UiRefreshBus.requestDataRefresh()
+                    Log.w(TAG, "Deleted $removedCount future readings for serials=$serials after $timestampExclusive")
+                }
+                removedCount
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting future readings for $sensorSerial after $timestampExclusive", e)
                 0
             }
         }

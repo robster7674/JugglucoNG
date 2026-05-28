@@ -287,10 +287,6 @@ fromjava(getCustomCalibrationSettings)(JNIEnv *env, jclass cl, jlong dataptr) {
     result |= 2;
   result |= (static_cast<jlong>(info->customCalIndex) << 8);
 
-  LOGGER("JNI getCustomCalibrationSettings: enabled=%d, index=%d, "
-         "autoReset=%d, result=%lld\n",
-         info->useCustomCalibration, info->customCalIndex,
-         info->autoResetAlgorithm, result);
   return result;
 }
 
@@ -350,13 +346,15 @@ extern "C" JNIEXPORT jboolean JNICALL fromjava(siSensorptrTransmitterScan)(
   auto *sens = reinterpret_cast<SensorGlucoseData *>(sensorptr);
   auto *info = sens->getinfo();
   info->siToken = '%';
+  info->siType = 3;
+  info->notchinese = true;
 
   char *name = (char *)info->siDeviceName;
   constexpr const int namlen = 10;
   memcpy(name, scancode + getlen - namlen, namlen);
   info->siDeviceNamelen = namlen;
   name[namlen] = '\0';
-  LOGGER("siSensorptrTransmitterScan %s\n", name);
+  LOGGER("siSensorptrTransmitterScan %s subtype=3 notchinese=1\n", name);
   sendstreaming(sens);
   backup->resendResetDevices();
   backup->wakebackup(Backup::wakeall);
@@ -1264,6 +1262,10 @@ fromjava(SIprocessData)(JNIEnv *envin, jclass cl, jlong dataptr,
   uint32_t timsec = mmsec / 1000L;
   data_t *bluedata = fromjbyteArray(envin, bluetoothdata);
   destruct _destbluedata([bluedata] { data_t::deleteex(bluedata); });
+  if (sens->notchinese() && !sdata->sicontext.isNotchinese()) {
+    LOGAR("SIprocessData refreshing context to notchinese");
+    sdata->sicontext.setNotchinese(sens);
+  }
   /*
     if(sens->getinfo()->reset) {
           if(!sens->getinfo()->notchinese||!V120Reset) {

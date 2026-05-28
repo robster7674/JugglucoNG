@@ -2,8 +2,40 @@ package tk.glucodata
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.util.Locale
 
 class CurrentDisplaySourceTests {
+
+    @Test
+    fun resolveFromLive_keepsDisplayLocalizedButSpeechDotDelimitedInMmol() {
+        val originalLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.GERMANY)
+            val timestamp = 1_700_000_000_000L
+            val recentPoints = listOf(GlucosePoint(timestamp, 3.4f, 1.2f))
+
+            val snapshot = CurrentDisplaySource.resolveFromLive(
+                liveValueText = null,
+                liveNumericValue = 3.4f,
+                rate = 0f,
+                targetTimeMillis = timestamp,
+                sensorId = "locale-test",
+                sensorGen = 0,
+                index = 0,
+                source = "test",
+                recentPoints = recentPoints,
+                viewMode = 2,
+                isMmol = true
+            )
+
+            requireNotNull(snapshot)
+            assertEquals("3,4", snapshot.primaryStr)
+            assertEquals("1,2", snapshot.secondaryStr)
+            assertEquals("3.4", snapshot.speechPrimaryStr)
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
+    }
 
     @Test
     fun resolveFromLive_usesMatchedHistoryRawInRawPrimaryMode() {

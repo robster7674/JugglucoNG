@@ -1,10 +1,21 @@
 package tk.glucodata.alerts
 
 import org.json.JSONObject
+import java.util.Calendar
+import java.util.TimeZone
 import java.util.UUID
 
 enum class CustomAlertType {
     HIGH, LOW
+}
+
+private const val MIN_CUSTOM_ALERT_DURATION_SECONDS = 1
+private const val MAX_CUSTOM_ALERT_DURATION_SECONDS = 60
+private const val DEFAULT_CUSTOM_ALERT_DURATION_SECONDS = 5
+
+private fun sanitizeCustomAlertDurationSeconds(value: Int): Int {
+    return value.takeIf { it in MIN_CUSTOM_ALERT_DURATION_SECONDS..MAX_CUSTOM_ALERT_DURATION_SECONDS }
+        ?: DEFAULT_CUSTOM_ALERT_DURATION_SECONDS
 }
 
 data class CustomAlertConfig(
@@ -34,17 +45,32 @@ data class CustomAlertConfig(
     
     val snoozedUntil: Long = 0L,
     val soundUri: String? = null,
-    val durationSeconds: Int = DEFAULT_ALERT_DURATION_SECONDS
+    val durationSeconds: Int = DEFAULT_CUSTOM_ALERT_DURATION_SECONDS
 ) {
     fun isActiveTime(currentMinutes: Int): Boolean {
         if (!timeRangeEnabled) return true // Always active if time range disabled
-        
-        return if (startTimeMinutes <= endTimeMinutes) {
-            currentMinutes in startTimeMinutes until endTimeMinutes
+
+        val current = normalizeClockMinutes(currentMinutes)
+        val start = startTimeMinutes.coerceIn(0, MINUTES_PER_DAY - 1)
+        val end = endTimeMinutes.coerceIn(0, MINUTES_PER_DAY)
+
+        if (start == 0 && end == MINUTES_PER_DAY) {
+            return true
+        }
+        if (start == end) {
+            return false
+        }
+
+        return if (start < end) {
+            current in start until end
         } else {
             // Crosses midnight (e.g. 22:00 to 07:00)
-            currentMinutes >= startTimeMinutes || currentMinutes < endTimeMinutes
+            current >= start || current < end
         }
+    }
+
+    fun isActiveAt(timeMillis: Long, timeZone: TimeZone = TimeZone.getDefault()): Boolean {
+        return isActiveTime(localMinutesOfDay(timeMillis, timeZone))
     }
 
     fun toJson(): JSONObject {
@@ -77,6 +103,18 @@ data class CustomAlertConfig(
     }
 
     companion object {
+        const val MINUTES_PER_DAY = 24 * 60
+
+        fun localMinutesOfDay(timeMillis: Long, timeZone: TimeZone = TimeZone.getDefault()): Int {
+            val calendar = Calendar.getInstance(timeZone)
+            calendar.timeInMillis = timeMillis
+            return calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
+        }
+
+        private fun normalizeClockMinutes(minutes: Int): Int {
+            return ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
+        }
+
         fun fromJson(json: JSONObject): CustomAlertConfig {
             return CustomAlertConfig(
                 id = json.optString("id", UUID.randomUUID().toString()),
@@ -98,8 +136,8 @@ data class CustomAlertConfig(
                     legacyHapticProfile(json.optString("intensity", "medium"))
                 ),
                 overrideDnd = json.optBoolean("overrideDnd", false),
-                durationSeconds = sanitizeAlertDurationSeconds(
-                    json.optInt("durationSeconds", DEFAULT_ALERT_DURATION_SECONDS)
+                durationSeconds = sanitizeCustomAlertDurationSeconds(
+                    json.optInt("durationSeconds", DEFAULT_CUSTOM_ALERT_DURATION_SECONDS)
                 ),
                 
                 retryEnabled = json.optBoolean("retryEnabled", false),

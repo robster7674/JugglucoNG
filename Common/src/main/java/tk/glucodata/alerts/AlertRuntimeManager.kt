@@ -29,6 +29,7 @@ object AlertRuntimeManager {
     private var lastDeliveredReadingTimeMs: Long = 0L
     private var lastGlucoseValue: Float = Float.NaN
     private var lastRate: Float = Float.NaN
+    private var lastDisplaySnapshot: CurrentDisplaySource.Snapshot? = null
     private var persistentHighStartedAtMs: Long = 0L
     private val standardEpisodes = AlertEpisodeState<AlertType>()
 
@@ -61,21 +62,31 @@ object AlertRuntimeManager {
         readingTimeMs: Long,
         sensorGen: Int = 0
     ): AlertRuntimeEvaluation {
-        val snapshot = CurrentDisplaySource.resolveIncomingReading(
-            liveNumericValue = glucoseValue,
-            rate = rate,
-            targetTimeMillis = readingTimeMs,
-            preferredSensorId = sensorId,
-            sensorGen = sensorGen
-        )
+        val snapshot = try {
+            CurrentDisplaySource.resolveIncomingReading(
+                liveNumericValue = glucoseValue,
+                rate = rate,
+                targetTimeMillis = readingTimeMs,
+                preferredSensorId = sensorId,
+                sensorGen = sensorGen
+            )
+        } catch (t: Throwable) {
+            Log.stack(LOG_ID, "resolveIncomingReading", t)
+            null
+        }
         synchronized(lock) {
             lastReadingTimeMs = maxOf(lastReadingTimeMs, readingTimeMs)
             if (snapshot != null && snapshot.primaryValue.isFinite()) {
                 lastGlucoseValue = snapshot.primaryValue
                 lastRate = snapshot.rate
+                lastDisplaySnapshot = snapshot
             } else {
-                lastGlucoseValue = glucoseValue
-                lastRate = rate
+                lastGlucoseValue = Float.NaN
+                lastRate = Float.NaN
+                lastDisplaySnapshot = null
+                lastDeliveredReadingTimeMs = maxOf(lastDeliveredReadingTimeMs, readingTimeMs)
+                ensureTaskLocked()
+                return AlertRuntimeEvaluation()
             }
             lastDeliveredReadingTimeMs = maxOf(lastDeliveredReadingTimeMs, readingTimeMs)
             ensureTaskLocked()
@@ -124,6 +135,7 @@ object AlertRuntimeManager {
             lastReadingTimeMs = latest.timeMillis
             lastGlucoseValue = latest.primaryValue
             lastRate = latest.rate
+            lastDisplaySnapshot = latest
         }
 
         if (latest.timeMillis <= lastDeliveredReadingTimeMs) {
@@ -169,6 +181,8 @@ object AlertRuntimeManager {
             return AlertRuntimeEvaluation(standardGlucoseAlertHandled = true)
         }
 
+        logStandardCondition(type, condition, rate)
+
         if (SnoozeManager.isSnoozed(type)) {
             standardEpisodes.markPendingAfterSnooze(type)
             return AlertRuntimeEvaluation()
@@ -183,24 +197,36 @@ object AlertRuntimeManager {
         )
     }
 
-    private data class StandardAlertCondition(val glucoseValue: Float)
+    private data class StandardAlertCondition(
+        val glucoseValue: Float,
+        val evaluatedValue: Float,
+        val threshold: Float
+    )
 
     private fun resolveActiveStandardGlucoseAlerts(
         glucoseValue: Float,
         rate: Float,
         configs: Map<AlertType, AlertConfig>
     ): Map<AlertType, StandardAlertCondition> {
-        val projected = projectedGlucose(glucoseValue, rate)
         return standardGlucoseAlertTypes.mapNotNull { type ->
             val config = configs[type] ?: return@mapNotNull null
             if (!config.enabled) return@mapNotNull null
             if (!config.isActiveNow()) return@mapNotNull null
             val threshold = config.threshold?.takeIf { it.isFinite() && it > 0f } ?: return@mapNotNull null
-            val value = if (isForecastAlert(type)) projected else glucoseValue
+            val value = if (isForecastAlert(type)) {
+                AlertGlucoseMath.projectedDisplayValue(
+                    glucoseValue = glucoseValue,
+                    rateMgdlPerMinute = rate,
+                    forecastMinutes = config.forecastMinutes,
+                    isMmol = Applic.unit == 1
+                )
+            } else {
+                glucoseValue
+            }
             if (!value.isFinite()) return@mapNotNull null
 
             if (isThresholdConditionActive(type, value, threshold)) {
-                type to StandardAlertCondition(glucoseValue)
+                type to StandardAlertCondition(glucoseValue, value, threshold)
             } else {
                 null
             }
@@ -223,11 +249,20 @@ object AlertRuntimeManager {
         }
     }
 
-    private fun projectedGlucose(glucoseValue: Float, rate: Float): Float {
-        if (!glucoseValue.isFinite() || !rate.isFinite()) {
-            return Float.NaN
-        }
-        return glucoseValue + rate * 0.4f * 180.0f
+    private fun logStandardCondition(
+        type: AlertType,
+        condition: StandardAlertCondition,
+        rate: Float
+    ) {
+        val snapshot = lastDisplaySnapshot
+        Log.i(
+            LOG_ID,
+            "Standard condition active type=${type.name} primary=${condition.glucoseValue} " +
+                "evaluated=${condition.evaluatedValue} threshold=${condition.threshold} " +
+                "rate=$rate viewMode=${snapshot?.viewMode ?: -1} " +
+                "auto=${snapshot?.autoValue ?: Float.NaN} raw=${snapshot?.rawValue ?: Float.NaN} " +
+                "source=${snapshot?.source ?: "none"} sensor=${snapshot?.sensorId ?: "none"}"
+        )
     }
 
     private fun evaluateMissedReadingLocked(nowMs: Long) {
@@ -355,7 +390,7 @@ object AlertRuntimeManager {
     }
 
     private fun bootstrapLastReadingLocked() {
-        if (lastReadingTimeMs > 0L && lastGlucoseValue.isFinite()) {
+        if (lastReadingTimeMs > 0L && lastGlucoseValue.isFinite() && lastDisplaySnapshot != null) {
             return
         }
         val latest = try {
@@ -376,21 +411,24 @@ object AlertRuntimeManager {
         if (!lastRate.isFinite()) {
             lastRate = latest.rate
         }
+        lastDisplaySnapshot = latest
     }
 
     private fun currentGlucoseValueLocked(): Float? {
-        if (lastGlucoseValue.isFinite()) {
-            return lastGlucoseValue
+        val snapshot = lastDisplaySnapshot
+        if (snapshot != null && snapshot.primaryValue.isFinite()) {
+            return snapshot.primaryValue
         }
         bootstrapLastReadingLocked()
-        return lastGlucoseValue.takeIf { it.isFinite() }
+        return lastDisplaySnapshot?.primaryValue?.takeIf { it.isFinite() }
     }
 
     private fun currentRateLocked(): Float {
-        if (lastRate.isFinite()) {
-            return lastRate
+        val snapshot = lastDisplaySnapshot
+        if (snapshot != null && snapshot.rate.isFinite()) {
+            return snapshot.rate
         }
         bootstrapLastReadingLocked()
-        return lastRate.takeIf { it.isFinite() } ?: Float.NaN
+        return lastDisplaySnapshot?.rate?.takeIf { it.isFinite() } ?: Float.NaN
     }
 }

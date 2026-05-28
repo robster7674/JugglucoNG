@@ -49,6 +49,7 @@
     <string name="specifyreceiveordata">Укажыце \'Атрымаць ад\' або дадзеныя для адпраўкі на іншую прыладу</string>
     <string name="specifyip">Вы павінны паказаць IP</string>
     <string name="portrange">Сеткавыя парты (port) павінны быць паміж 1024 і 65535</string>
+    <string name="mirror_portrange">Парты люстравання павінны быць паміж 1 і 65535</string>
     <string name="start">Пачаць</string>
     <string name="now">Зараз</string>
     <string name="dontchangeamounts">Сумы, атрыманыя ад люстэрка</string>
@@ -1027,7 +1028,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="camerapermission">Дазвол камеры</string>
     <string name="changestart">Changestart</string>
     <string name="choose_what_to_clear">Выберыце, што ачысціць</string>
-    <string name="clear_calibrations_title">Выразныя каліброўкі</string>
+    <string name="clear_calibrations_title">Ачысціць каліброўкі</string>
     <string name="clear_disabled_only">Толькі ачыстка адключана</string>
     <string name="colorhelp">Даведка па колеры</string>
     <string name="conditions_optimal">Умовы выглядаюць аптымальна для каліброўкі</string>
@@ -1096,6 +1097,7 @@ Pressing OK will generate a connection on this phone and display a QR code that 
     <string name="mirror_connection_settings_help_text">Налады злучэння для гэтай люстраной канчатковай кропкі.</string>
     <string name="mirror_settings_help_text">Наладзьце параметры сервера адпраўкі/атрымання і люстэрка.</string>
     <string name="model">мадэль</string>
+    <string name="anytime_sensor_telemetry">Iw / Ib / T</string>
     <string name="modes">Рэжымы</string>
     <string name="retry_constantly">Пастаянна</string>
     <string name="retry_forever">Паўтараць бясконца</string>

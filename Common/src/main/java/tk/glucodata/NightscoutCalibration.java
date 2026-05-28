@@ -147,4 +147,17 @@ public final class NightscoutCalibration {
     ) {
         return resolveExportedValueMgdl(sensorId, viewMode, autoMgdl, rawCurrent, timestampMillis);
     }
+
+    @Keep
+    public static int getExchangeOutputIntervalSeconds() {
+        try {
+            if (Applic.app == null || !DataSmoothing.shouldCollapseExchangeOutputs(Applic.app)) {
+                return 0;
+            }
+            final int minutes = DataSmoothing.collapseIntervalMinutes(DataSmoothing.getMinutes(Applic.app));
+            return minutes > 0 ? minutes * 60 : 0;
+        } catch (Throwable ignored) {
+            return 0;
+        }
+    }
 }
